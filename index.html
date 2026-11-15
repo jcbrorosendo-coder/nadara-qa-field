@@ -1049,7 +1049,7 @@ function aCard(a){
   return `<button class="acard" data-go="${a.status==='completed'?'r-':'a-'}${a.id}">
    <div class="ring">${ring(sc.pct)}<b>${sc.pct==null?'–':Math.round(sc.pct)}</b></div>
    <div style="min-width:0"><h3>${esc(a.wtg||'Turbine')} <span class="muted" style="font-weight:500;font-size:15px">· ${esc(a.wf||'')}</span></h3>
-    <div class="meta">${a.readOnly?'<span class="pill na" style="padding:0 6px">online copy</span>':''}<span class="tplb tpl-${tplOf(a).k}">${tplOf(a).tag}</span>${a.country?`<span>${esc(a.country)}</span>`:''}<span>${esc(a.type||'')} ${esc(a.mk||'')}</span><span>${fmtD(a.date)}</span><span>${(a.inspectors||[]).map(nm).map(esc).join(', ')}</span></div>
+    <div class="meta">${a.readOnly?'<span class="pill na" style="padding:0 6px">online copy</span>':a.source==='online-draft'?'<span class="pill nad" style="padding:0 6px">from online</span>':''}<span class="tplb tpl-${tplOf(a).k}">${tplOf(a).tag}</span>${a.country?`<span>${esc(a.country)}</span>`:''}<span>${esc(a.type||'')} ${esc(a.mk||'')}</span><span>${fmtD(a.date)}</span><span>${(a.inspectors||[]).map(nm).map(esc).join(', ')}</span></div>
     ${a.status==='completed'?'':`<div class="pbar" title="${pr}% of control points answered"><i style="width:${pr}%"></i></div>`}</div>
    <div class="stack" style="align-items:flex-end;gap:6px">${a.status==='completed'?`<span class="grade g-${sc.grade.g}" title="${esc(sc.grade.t)}">${sc.grade.g}</span>`:`<span class="pill nad">${pr}%</span>`}
     ${sc.nok?`<span class="pill nok">${sc.nok} nOK</span>`:''}</div></button>`;
@@ -1217,6 +1217,7 @@ async function saveAns(aid,code,patch){
   const a=S.assess.find(x=>x.id===aid);if(!a)return;
   const cur=answersOf(a)[code]||{};const next={...cur,...patch,by:S.meId,at:new Date().toISOString()};
   S.queue[aid+'|'+code]={aid,code,val:next,t:Date.now()};Q.save();render();flush();
+  if(FIELD&&a.originId&&!a.fieldEdited)S.db.doc('assessments/'+aid).update({fieldEdited:true}).catch(()=>{});
 }
 async function shrink(file){
   try{const bmp=await createImageBitmap(file,{imageOrientation:'from-image'});const k=Math.min(1,1920/Math.max(bmp.width,bmp.height));
@@ -1429,8 +1430,8 @@ async function importPackage(file){
   if(pkg&&pkg.format==='nadara-qa-library')return importLibrary(pkg);
   if(!pkg||pkg.format!=='nadara-qa-field'||!pkg.assessment){toast('This file is not a Nadara QA field file.');return}
   if(FIELD){toast('This is a field file: import it in the online app.');return}
-  const src=pkg.assessment,nid='f'+String(src.id).replace(/[^\w-]/g,'');
-  if(S.assess.some(x=>x.id===nid)){toast('This inspection was already imported.');go('r-'+nid);return}
+  const src=pkg.assessment,orig=src.originId&&S.assess.find(x=>x.id===src.originId),nid=orig?orig.id:'f'+String(src.id).replace(/[^\w-]/g,'');
+  if(!orig&&S.assess.some(x=>x.id===nid)){toast('This inspection was already imported.');go('r-'+nid);return}
   if(!S.assets){toast('Photo upload is not available with your access level.');return}
   const ids=Object.keys(pkg.photos||{}),map={};let n=0;
   const tick=()=>{const el=$('#imp-prog');if(el)el.textContent=`Uploading photos ${n}/${ids.length}…`};
@@ -1438,15 +1439,17 @@ async function importPackage(file){
   try{for(const id of ids){const b=await (await fetch(pkg.photos[id])).blob();const r=await S.assets.upload(b,{type:b.type||'image/jpeg'});map[id]=r.id;n++;tick()}
     const mp=l=>(l||[]).map(p=>map[p]).filter(Boolean);
     const answers={};for(const [k,r] of Object.entries(src.answers||{}))answers[k]={...r,photos:mp(r.photos)};
-    const {id:_,...rest}=src;
-    await S.db.doc('assessments/'+nid).set({...rest,answers,source:'field',fieldNames:pkg.people||{},importedBy:S.meId,importedAt:new Date().toISOString(),updatedAt:new Date().toISOString(),score:scoreOf({...src,answers}).pct});
+    const {id:_,readOnly:_r,originId:_o,fieldEdited:_f,exportedAt:_e,source:_s,...rest}=src;
+    if(orig){const merged={...(orig.answers||{})};for(const [k,r] of Object.entries(answers))merged[k]=r;const {id:_oid,...o2}=orig;
+      await S.db.doc('assessments/'+nid).set({...o2,...rest,answers:merged,fieldNames:{...(orig.fieldNames||{}),...(pkg.people||{})},importedBy:S.meId,importedAt:new Date().toISOString(),updatedAt:new Date().toISOString(),score:scoreOf({...orig,...rest,answers:merged}).pct})}
+    else await S.db.doc('assessments/'+nid).set({...rest,answers,source:'field',fieldNames:pkg.people||{},importedBy:S.meId,importedAt:new Date().toISOString(),updatedAt:new Date().toISOString(),score:scoreOf({...src,answers}).pct});
     for(const x of (pkg.actions||[])){const {id:xid,evidence,...xr}=x;await S.db.doc('actions/f'+String(xid).replace(/[^\w-]/g,'')).set({...xr,aid:nid,findPhotos:[...mp(x.findPhotos),...mp((evidence||{}).photos)],status:'open',desc:(xr.desc?xr.desc+'\n':'')+'Raised in the field app.'})}
-    closeSheet();toast('Field inspection imported');go('r-'+nid)}
+    closeSheet();toast(orig?'Report updated with the field data':'Field inspection imported');go((rest.status==='completed'?'r-':'a-')+nid)}
   catch(e){closeSheet();toast('Import stopped: check the network and try again.')}}
 /* reports library: online app -> field app (read-only copies for offline viewing) */
-async function exportLibrary(btn){const list=S.assess.filter(a=>a.status==='completed');if(!list.length){toast('No completed reports yet.');return}
+async function exportLibrary(btn){const list=S.assess.slice();if(!list.length){toast('No reports yet.');return}
   if(btn)btn.disabled=true;const prog=t=>{const el=$('#lib-prog');if(el)el.textContent=t};
-  openSheet(`<h2>Reports for the field app</h2><p class="muted">Preparing ${list.length} completed report${list.length>1?'s':''} with photos…</p><p id="lib-prog" class="mono"></p>`);
+  openSheet(`<h2>Reports for the field app</h2><p class="muted">Preparing ${list.length} report${list.length>1?'s':''} (completed and in progress) with photos…</p><p id="lib-prog" class="mono"></p>`);
   try{const items=[],people={};let n=0;
     for(const a of list){const xs=S.actions.filter(x=>x.aid===a.id);const ans=answersOf(a);const ids=new Set();
       Object.values(ans).forEach(r=>(r.photos||[]).forEach(p=>ids.add(p)));xs.forEach(x=>{(x.findPhotos||[]).forEach(p=>ids.add(p));((x.evidence||{}).photos||[]).forEach(p=>ids.add(p))});
@@ -1458,11 +1461,11 @@ async function exportLibrary(btn){const list=S.assess.filter(a=>a.status==='comp
   catch(e){closeSheet();if(!e||e.code!=='cancelled')toast('The file could not be created.')}finally{if(btn)btn.disabled=false}}
 async function importLibrary(pkg){if(!FIELD){toast('Import this file in the field app (Import reports).');return}
   const items=pkg.items||[];let done=0;openSheet(`<h2>Importing reports</h2><p id="lib-prog" class="mono">0/${items.length}</p>`);
-  try{for(const it of items){const src=it.assessment,nid='o'+String(src.id).replace(/[^\w-]/g,'');
-      const cur=S.assess.find(x=>x.id===nid);if(cur&&cur.updatedAt===src.updatedAt){done++;continue}
+  try{for(const it of items){const src=it.assessment,draft=src.status!=='completed',nid=(draft?'e':'o')+String(src.id).replace(/[^\w-]/g,'');
+      const cur=S.assess.find(x=>x.id===nid);if(cur&&(cur.updatedAt===src.updatedAt||(draft&&cur.fieldEdited))){done++;continue}
       const map={};for(const [id,d] of Object.entries(it.photos||{})){try{const b=await (await fetch(d)).blob();const r=await S.assets.upload(b);map[id]=r.id}catch(e){}}
       const mp=l=>(l||[]).map(p=>map[p]).filter(Boolean);const answers={};for(const [k,r] of Object.entries(src.answers||{}))answers[k]={...r,photos:mp(r.photos)};
-      const {id:_,...rest}=src;await S.db.doc('assessments/'+nid).set({...rest,answers,readOnly:true,source:'online',exportedAt:'online',fieldNames:{...(src.fieldNames||{}),...(pkg.people||{})}});
+      const {id:_,...rest}=src;await S.db.doc('assessments/'+nid).set({...rest,answers,readOnly:!draft,source:draft?'online-draft':'online',originId:src.id,exportedAt:draft?null:'online',fieldNames:{...(src.fieldNames||{}),...(pkg.people||{})}});
       for(const x of (it.actions||[])){const {id:xid,...xr}=x;await S.db.doc('actions/o'+String(xid).replace(/[^\w-]/g,'')).set({...xr,aid:nid,findPhotos:mp(x.findPhotos),evidence:x.evidence?{...x.evidence,photos:mp(x.evidence.photos)}:null,readOnly:true})}
       done++;const el=$('#lib-prog');if(el)el.textContent=`${done}/${items.length}`}
     for(const [i,n] of Object.entries(pkg.people||{}))if(n&&!S.names[i])S.names[i]=n;
@@ -1529,7 +1532,7 @@ function van(sc){const c=z=>pctColor(zoneScore(sc,z)),P='#720062';
 /* ---------- SWI library ---------- */
 function vLibrary(){const docs=Object.values(S.docs);
   return `${notices()}<div class="pagehead"><div><div class="eyebrow">Work instructions on site</div><h1>SWI library</h1></div>
-   ${!FIELD&&S.dl?`<button class="btn" data-libexport>${ICON.dl}Download reports for field app</button>`:''}</div>
+   ${!FIELD&&S.dl?`<button class="btn" data-libexport>${ICON.dl}Send reports to field app</button>`:''}</div>
   <div class="list">${docs.length?docs.map(d=>`<button class="acard" data-go="doc-${d.id}"><div class="docic">${ICON.doc}</div><div style="min-width:0"><h3>${esc(d.title)}</h3><div class="meta"><span class="tplb tpl-${esc(d.tpl)}">${esc(d.tpl)}</span><span class="mono">${esc(d.code||'')}</span><span>${(d.pages||[]).length} pages</span><span>${esc(d.status||'')}</span></div></div><span class="pill nad">Open</span></button>`).join('')
    :`<div class="card empty"><h2>No SWI published yet</h2><p class="muted">Work instructions appear here so technicians can read them on the phone during the inspection.</p></div>`}</div>`}
 function vDoc(arg){const [id,pg]=arg.split('-');const d=S.docs[id];
