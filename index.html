@@ -321,6 +321,14 @@ textarea.note,.field textarea{width:100%;min-height:64px;border:1px solid var(--
 @media (max-width:700px){.impcard{grid-template-columns:minmax(0,1fr)}}
 .impcard span{font:500 11px var(--f-head);letter-spacing:.08em;text-transform:uppercase;color:var(--warn)} .impcard p{margin:2px 0 0;font-size:14px}
 .plan .plbl{font:500 9px Roboto,Arial,sans-serif;fill:#1d1620;paint-order:stroke;stroke:#fff;stroke-width:2.6px;stroke-linejoin:round} .plan .plbl.dark{fill:var(--muted);stroke:none}
+.hero{position:relative;display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:end;gap:16px;margin-bottom:18px;padding:18px 20px 0;border-radius:14px;background:linear-gradient(135deg,var(--nad-soft),var(--surface) 70%);border:1px solid var(--line);overflow:hidden}
+.hero h1{font-size:30px;line-height:1.1;margin-top:2px}
+.hero-sub{margin:6px 0 12px;color:var(--muted);max-width:52ch}
+.hero-txt{padding-bottom:18px;min-width:0}
+.hero-turb{width:190px;height:auto;display:block;margin-bottom:-2px}
+.hero-rotor{transform-origin:100px 70px}
+@media (prefers-reduced-motion:no-preference){.hero-rotor{animation:spin 6s linear infinite}}
+@media (max-width:560px){.hero{grid-template-columns:minmax(0,1fr) 96px;padding:14px 14px 0}.hero h1{font-size:24px}.hero-sub{font-size:13px}.hero-turb{width:96px}}
 .fab{display:none}
 @media (max-width:760px){.fab{display:inline-flex;position:fixed;right:max(16px,env(safe-area-inset-right,0px));bottom:calc(76px + env(safe-area-inset-bottom,0px));z-index:15;box-shadow:var(--shadow)} .hide-m{display:none}}
 </style>
@@ -1015,8 +1023,9 @@ function vHome(){
   if(S.q){const q=S.q.toLowerCase();list=list.filter(a=>[a.wf,a.wtg,a.type,a.country].join(' ').toLowerCase().includes(q))}
   const canNew=S.ready&&S.db&&S.canWrite;
   return `${notices()}
-  <div class="pagehead"><div><div class="eyebrow">Nadara · turbines · warehouses · substations · vehicles</div><h1>Quality assessments</h1></div>
-   <div class="row" style="gap:8px">${S.assets?`<label class="btn" for="impfile">${ICON.dl}${FIELD?'Import reports':'Import field file'}</label><input id="impfile" type="file" accept=".json,application/json" hidden>`:''}<button class="btn primary hide-m" data-new ${canNew?'':'disabled'}>${ICON.plus}New assessment</button></div></div>
+  <section class="hero"><div class="hero-txt"><div class="eyebrow">Nadara · turbines · warehouses · substations · vehicles</div><h1>Quality assessments</h1>
+   <p class="hero-sub">Inspect, score and improve: photo-backed checklists, reports and actions validated by the team.</p>
+   <div class="row" style="gap:8px">${S.assets?`<label class="btn" for="impfile">${ICON.dl}${FIELD?'Import reports':'Import field file'}</label><input id="impfile" type="file" accept=".json,application/json" hidden>`:''}<button class="btn primary hide-m" data-new ${canNew?'':'disabled'}>${ICON.plus}New assessment</button></div></div>${heroTurbine()}</section>
   ${FIELD?`<div class="notice" style="background:var(--nad-soft);color:var(--nad)">Field app: inspections are saved on this phone, with or without network. When you have network, open the report and tap <b>Send to online app</b>, then import the file in the online app.${S.assess.filter(x=>!x.exportedAt).length?` <b>${S.assess.filter(x=>!x.exportedAt).length} not sent yet.</b>`:''}</div>`:''}
   <div class="kpis">
    <div class="card kpi"><div class="eyebrow">Assessments</div><div class="v">${all.length}</div><div class="s">${comp.length} completed · ${all.length-comp.length} in progress</div></div>
@@ -1486,6 +1495,19 @@ function quickAct(aid){const box=$('#qa-'+aid);if(!box)return;if(box.innerHTML){
   bindPicker('qa-own',S.meId?[S.meId]:[],1);$('#qa-title').focus();
   $('#fqa').onsubmit=async e=>{e.preventDefault();const id=uid();
     try{await S.db.doc('actions/'+id).set({aid,code:'GEN',title:$('#qa-title').value.trim(),desc:'',prio:$('#qa-prio').value,due:$('#qa-due').value||'',assignee:pickers['qa-own'][0]||'',findPhotos:[],status:'open',createdBy:S.meId,createdAt:new Date().toISOString()});toast('Action added')}catch(err){toast(dbMsg(err))}}}
+/* animated hero turbine on the home page */
+function heroTurbine(){const P='#720062';
+  const blade=g=>`<path d="M100 70 L95 8 Q100 -4 105 8 Z" transform="rotate(${g} 100 70)" fill="#ffffff" stroke="${P}" stroke-width="1.4"/>`;
+  return `<svg class="hero-turb" viewBox="0 0 200 230" role="img" aria-label="Nadara wind turbine">
+   <defs><linearGradient id="htw" x1="0" x2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#e9e2e8"/></linearGradient></defs>
+   <path d="M0 222 Q 60 206 120 214 T 200 210 V230 H0z" fill="var(--nad-soft)"/>
+   <path d="M125 80 L135 80 L142 220 L118 220 Z" fill="url(#htw)" stroke="${P}" stroke-width="1.2"/>
+   <rect x="126" y="207" width="8" height="13" rx="1.2" fill="${P}"/>
+   <rect x="104" y="60" width="58" height="20" rx="5" fill="#ffffff" stroke="${P}" stroke-width="1.6"/>
+   <text x="114" y="74" fill="${P}" style="font:700 10.5px Roboto,Arial,sans-serif">nadara</text>
+   <g class="hero-rotor">${blade(0)}${blade(120)}${blade(240)}</g>
+   <circle cx="100" cy="70" r="7" fill="${P}"/><circle cx="100" cy="70" r="2.4" fill="#fff"/>
+  </svg>`}
 /* floor plans for warehouse and substation */
 const LEG=`<div class="legend"><span><i style="background:var(--sev1)"></i>≥90</span><span><i style="background:#5aa02c"></i>75–89</span><span><i style="background:var(--sev3)"></i>50–74</span><span><i style="background:var(--sev4)"></i>&lt;50</span><span><i style="background:var(--na-soft)"></i>no data</span></div>`;
 function whMap(sc){const c=z=>pctColor(zoneScore(sc,z)),P='#720062';
