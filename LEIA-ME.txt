@@ -1,0 +1,24 @@
+NADARA QA FIELD - app de inspecao que funciona sem rede
+=========================================================
+Conteudo desta pasta (publicar TODOS os ficheiros juntos, na mesma pasta):
+  index.html, sw.js, manifest.webmanifest, icon-192.png, icon-512.png, apple-touch-icon.png
+
+1) PUBLICAR (uma vez) num endereco HTTPS de ficheiros estaticos, por exemplo:
+   - TI Nadara: Azure Static Web Apps / Azure Storage (static website) / servidor web interno com HTTPS
+   - Netlify Drop (app.netlify.com/drop): arrastar esta pasta; criar conta para o site ficar permanente
+   - GitHub Pages
+   (O SharePoint/Teams NAO serve: nao executa paginas HTML.)
+
+2) INSTALAR no telemovel (com rede, uma vez):
+   - iPhone: abrir o endereco no Safari > Partilhar > Adicionar ao ecra principal
+   - Android: abrir no Chrome > menu > Instalar app / Adicionar ao ecra principal
+   Abrir o icone uma vez com rede. A partir dai funciona sem rede.
+
+3) TRABALHAR sem rede: criar inspecoes, responder, fotos (camara ou galeria), acoes, assinatura e relatorio.
+   Tudo fica guardado no telemovel.
+
+4) ENVIAR (com rede): abrir o relatorio > "Send to online app" > partilhar o ficheiro .json para si
+   (Teams, e-mail). Na app online Nadara Quality Assessments: "Import field file".
+
+Notas: nao desinstalar a app nem apagar dados do browser antes de enviar.
+Para atualizar a app: substituir os ficheiros no mesmo endereco e alterar VERSION em sw.js.

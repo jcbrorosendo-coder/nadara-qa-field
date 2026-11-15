@@ -1,0 +1,1632 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#720062"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="Nadara QA">
+<link rel="manifest" href="manifest.webmanifest"><link rel="icon" href="icon-192.png"><link rel="apple-touch-icon" href="apple-touch-icon.png">
+<style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;font:14px system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>
+<script>/* Nadara QA Field — local, offline implementation of the runtime the app uses (db, user, assets, downloads).
+   Everything is stored on this device: documents in IndexedDB "nqa_field/docs", photos in "nqa_field/blobs". */
+(function(){
+  window.NQA_FIELD=true;window.FIELD_URLS={};
+  const DBN='nqa_field';let idb=null;
+  const open=()=>idb||(idb=new Promise((res,rej)=>{const r=indexedDB.open(DBN,1);r.onupgradeneeded=()=>{r.result.createObjectStore('docs');r.result.createObjectStore('blobs')};r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)}));
+  const tx=async(store,mode,fn)=>{const d=await open();return new Promise((res,rej)=>{const t=d.transaction(store,mode);const st=t.objectStore(store);let out;const r=fn(st);if(r)r.onsuccess=()=>{out=r.result};t.oncomplete=()=>res(out);t.onerror=()=>rej(t.error)})};
+  const store={};const listeners=new Set();
+  let ready=(async()=>{
+    try{const d=await open();
+      await new Promise(res=>{const t=d.transaction('docs');t.objectStore('docs').openCursor().onsuccess=e=>{const c=e.target.result;if(c){store[c.key]=c.value;c.continue()}else res()}});
+      await new Promise(res=>{const t=d.transaction('blobs');t.objectStore('blobs').openCursor().onsuccess=e=>{const c=e.target.result;if(c){try{FIELD_URLS[c.key]=URL.createObjectURL(c.value)}catch(_){}c.continue()}else res()}});
+      try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist()}catch(_){}
+    }catch(e){console.warn('Field storage unavailable',e)}
+  })();
+  const emit=()=>setTimeout(()=>listeners.forEach(f=>{try{f()}catch(e){console.error(e)}}),0);
+  const clone=o=>JSON.parse(JSON.stringify(o));
+  const merge=(a,b)=>{for(const k in b){const v=b[k];if(v&&typeof v==='object'&&!Array.isArray(v)&&a[k]&&typeof a[k]==='object'&&!Array.isArray(a[k]))merge(a[k],v);else a[k]=v}return a};
+  const persist=(path)=>tx('docs','readwrite',st=>store[path]===undefined?st.delete(path):st.put(store[path],path)).catch(()=>{});
+  const snapDoc=p=>({id:p.split('/').pop(),exists:store[p]!==undefined,data:()=>store[p]===undefined?undefined:clone(store[p]),metadata:{fromCache:false,hasPendingWrites:false}});
+  function docRef(path){return{path,id:path.split('/').pop(),
+    get:async()=>{await ready;return snapDoc(path)},
+    set:async d=>{await ready;store[path]=clone(d);await persist(path);emit()},
+    update:async d=>{await ready;store[path]=merge(store[path]||{},clone(d));await persist(path);emit()},
+    delete:async()=>{await ready;delete store[path];await persist(path);emit()},
+    onSnapshot:(n,err)=>{const f=()=>n(snapDoc(path));listeners.add(f);ready.then(f);return()=>listeners.delete(f)},
+    collection:p=>colRef(path+'/'+p)}}
+  function colRef(path){const depth=path.split('/').length+1;const q={orderBy:()=>q,limit:()=>q,where:()=>q,doc:id=>docRef(path+'/'+(id||Date.now().toString(36))),
+    onSnapshot:(n,err)=>{const f=()=>{const docs=Object.keys(store).filter(k=>k.startsWith(path+'/')&&k.split('/').length===depth).map(snapDoc).sort((a,b)=>String(b.data().createdAt||'').localeCompare(String(a.data().createdAt||'')));n({docs,size:docs.length,empty:!docs.length,metadata:{fromCache:false},docChanges:()=>[]})};listeners.add(f);ready.then(f);return()=>listeners.delete(f)}};return q}
+  const db={doc:docRef,collection:colRef};
+  // people & identity kept on the device
+  const LS=k=>{try{return JSON.parse(localStorage.getItem(k)||'null')}catch(e){return null}};const LSset=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}};
+  let meId=LS('nqa_me_id');if(!meId){meId='local_'+Math.random().toString(36).slice(2,10);LSset('nqa_me_id',meId)}
+  const people=()=>LS('nqa_people')||{};
+  const avatar=(name)=>'data:image/svg+xml,'+encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40"><rect width="40" height="40" rx="20" fill="#720062"/><text x="20" y="26" text-anchor="middle" font-family="Arial" font-size="16" font-weight="700" fill="#fff">${(name||'?').trim().split(/\s+/).map(w=>w[0]).slice(0,2).join('').toUpperCase().replace(/[<&>]/g,'')}</text></svg>`);
+  const prof=id=>{const n=id===meId?(LS('nqa_me_name')||''):(people()[id]||'');return{id,name:n,avatarUrl:avatar(n),color:'#720062',email:null,isMe:id===meId,guest:false}};
+  const user={me:async()=>({...prof(meId),isOwner:true,canEdit:true}),id:async()=>meId,isOwner:async()=>true,canEdit:async()=>true,can:async()=>true,
+    profiles:async ids=>Object.fromEntries((Array.isArray(ids)?ids:[ids]).map(i=>[i,prof(i)])),
+    search:async q=>{q=(q||'').trim();const P=people();const all=[prof(meId),...Object.keys(P).map(prof)].filter(p=>p.name);
+      const hits=all.filter(p=>!q||p.name.toLowerCase().includes(q.toLowerCase()));
+      if(q&&!all.some(p=>p.name.toLowerCase()===q.toLowerCase())){const id='p_'+q.toLowerCase().normalize('NFD').replace(/[^\w]+/g,'_').slice(0,30);P[id]=q;LSset('nqa_people',P);hits.unshift(prof(id))}
+      return hits.slice(0,8)}};
+  window.NQA_setMyName=n=>{LSset('nqa_me_name',n)};window.NQA_myName=()=>LS('nqa_me_name')||'';window.NQA_people=()=>({...people(),[meId]:LS('nqa_me_name')||''});
+  const assets={upload:async(b)=>{const id='f'+Date.now().toString(36)+Math.random().toString(36).slice(2,7);await tx('blobs','readwrite',st=>st.put(b,id));FIELD_URLS[id]=URL.createObjectURL(b);return{id,url:FIELD_URLS[id],sizeBytes:b.size,contentType:b.type}},
+    list:async()=>({assets:[],usage:{}}),delete:async id=>{await tx('blobs','readwrite',st=>st.delete(id))},getBlob:async id=>tx('blobs','readonly',st=>st.get(id))};
+  window.NQA_getBlob=assets.getBlob;
+  const downloads={save:async({filename,data})=>{const blob=data instanceof Blob?data:new Blob([data],{type:/\.json$/.test(filename)?'application/json':/\.html$/.test(filename)?'text/html':'text/csv'});
+    const file=new File([blob],filename,{type:blob.type});
+    if(navigator.canShare&&navigator.canShare({files:[file]})){try{await navigator.share({files:[file],title:filename});return{}}catch(e){if(e&&e.name==='AbortError')throw{code:'cancelled'}}}
+    const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=filename;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},4000);return{}}};
+  const caps={db,user,assets,downloads};
+  window.claude={use:async n=>{await ready;return caps[n]||null}};
+  // seed: this device's technician is the validator
+  ready.then(()=>{if(!store['config/admins']){store['config/admins']={ids:[meId]};persist('config/admins')}});
+  if('serviceWorker' in navigator&&(location.protocol==='https:'||location.hostname==='localhost'))navigator.serviceWorker.register('sw.js').catch(()=>{});
+})();
+</script></head><body>
+<title>Nadara QA Field</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto+Condensed:wght@500;700&family=Roboto+Mono:wght@400;500&family=Roboto:wght@300;400;500;700&display=swap">
+<style>
+/* Layout: field-kit app — sticky purple top bar, one working column (max 1080px); bottom tab bar on phones, inline tabs on desktop */
+:root{
+  --nad:#720062; --nad-2:#9b1a85; --nad-soft:#f3e6f0; --on-nad:#ffffff;
+  --bg:#f5f3f5; --surface:#ffffff; --surface-2:#faf8fa; --line:#e3dce2; --fg:#1d1620; --muted:#6a5f6c;
+  --ok:#1d8a4b; --ok-soft:#e3f4ea; --nok:#c62828; --nok-soft:#fbe7e7; --warn:#b27a00; --warn-soft:#fbf1d9; --na:#7d7480; --na-soft:#eeebee;
+  --sev1:#1d8a4b; --sev2:#b27a00; --sev3:#d9590f; --sev4:#c62828;
+  --shadow:0 1px 2px rgba(40,10,35,.06),0 6px 20px rgba(40,10,35,.06);
+  --f-body:"Roboto",system-ui,-apple-system,"Segoe UI",Arial,sans-serif;
+  --f-head:"Roboto Condensed","Roboto",system-ui,"Arial Narrow",Arial,sans-serif;
+  --f-mono:"Roboto Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  --r:10px; --bar:#720062;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --nad:#c25bb0; --nad-2:#e07fcf; --nad-soft:#3a2136; --on-nad:#1a0f18;
+  --bg:#141015; --surface:#1e181f; --surface-2:#241d25; --line:#372d38; --fg:#efe8ef; --muted:#a79ba9;
+  --ok:#4cc27e; --ok-soft:#173326; --nok:#ff6b6b; --nok-soft:#3a1d1f; --warn:#f0b429; --warn-soft:#382d12; --na:#a49aa6; --na-soft:#2c262d;
+  --sev1:#4cc27e; --sev2:#f0b429; --sev3:#ff9152; --sev4:#ff6b6b;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 6px 20px rgba(0,0,0,.3); --bar:#4e0043; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --nad:#c25bb0; --nad-2:#e07fcf; --nad-soft:#3a2136; --on-nad:#1a0f18;
+  --bg:#141015; --surface:#1e181f; --surface-2:#241d25; --line:#372d38; --fg:#efe8ef; --muted:#a79ba9;
+  --ok:#4cc27e; --ok-soft:#173326; --nok:#ff6b6b; --nok-soft:#3a1d1f; --warn:#f0b429; --warn-soft:#382d12; --na:#a49aa6; --na-soft:#2c262d;
+  --sev1:#4cc27e; --sev2:#f0b429; --sev3:#ff9152; --sev4:#ff6b6b;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 6px 20px rgba(0,0,0,.3); --bar:#4e0043; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font:400 15px/1.5 var(--f-body);-webkit-font-smoothing:antialiased}
+button,input,select,textarea{font:inherit;color:inherit}
+h1,h2,h3{font-family:var(--f-head);font-weight:700;letter-spacing:.01em;text-wrap:balance;margin:0}
+.mono{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+.muted{color:var(--muted)}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:30;background:var(--bar)}
+.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:var(--bar);color:#fff}
+:root:not([data-theme="light"]) .top{color:#fff}
+.top-in{max-width:1080px;margin:0 auto;display:flex;align-items:center;gap:16px;min-height:56px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.brand{display:flex;align-items:baseline;gap:10px;min-width:0;cursor:pointer;background:none;border:0;color:#fff;padding:0}
+.brand b{font:700 21px/1 var(--f-head);letter-spacing:-.01em;text-transform:lowercase}
+.brand span{font:500 12px/1 var(--f-head);letter-spacing:.12em;text-transform:uppercase;opacity:.85;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tabs{display:flex;gap:4px;margin-left:auto}
+.tab{background:none;border:0;color:#fff;opacity:.8;padding:8px 12px;border-radius:8px;font:500 14px var(--f-body);cursor:pointer;display:flex;gap:6px;align-items:center}
+.tab[aria-current="page"]{opacity:1;background:rgba(255,255,255,.16)}
+.tab .badge{background:#fff;color:#720062;border-radius:99px;font:700 11px/1 var(--f-body);padding:3px 6px}
+.me{display:flex;align-items:center;gap:8px}
+.me img{width:28px;height:28px;border-radius:50%;border:2px solid rgba(255,255,255,.6)}
+.bottomnav{display:none}
+main{max-width:1080px;margin:0 auto;padding-block:20px 40px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+@media (max-width:760px){
+  .tabs{display:none}
+  .bottomnav{display:grid;grid-template-columns:repeat(4,1fr);position:fixed;left:0;right:0;bottom:0;z-index:20;background:var(--surface);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom,0px);padding-left:env(safe-area-inset-left,0px);padding-right:env(safe-area-inset-right,0px)}
+  .bottomnav button{background:none;border:0;padding:8px 4px 10px;display:flex;flex-direction:column;align-items:center;gap:2px;font:500 11px var(--f-body);color:var(--muted);cursor:pointer;position:relative}
+  .bottomnav button[aria-current="page"]{color:var(--nad)}
+  .bottomnav svg{width:22px;height:22px}
+  .bottomnav .badge{position:absolute;top:4px;left:calc(50% + 6px);background:var(--nok);color:#fff;border-radius:99px;font:700 10px/1 var(--f-body);padding:3px 5px}
+  main{padding-bottom:calc(96px + env(safe-area-inset-bottom,0px))}
+  .brand span{display:none}
+}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:40px;padding:0 16px;border-radius:999px;border:1px solid var(--line);background:var(--surface);color:var(--fg);font:500 14px var(--f-body);cursor:pointer;white-space:nowrap;text-decoration:none}
+.btn:hover{border-color:var(--nad)}
+.btn.primary{background:var(--nad);border-color:var(--nad);color:var(--on-nad)}
+.btn.primary:hover{background:var(--nad-2)}
+.btn.danger{color:var(--nok);border-color:var(--nok)}
+.btn.ghost{border-color:transparent;background:transparent}
+.btn.sm{min-height:32px;padding:0 12px;font-size:13px}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn svg{width:18px;height:18px;flex:none}
+:focus-visible{outline:3px solid var(--nad-2);outline-offset:2px}
+.row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.spread{justify-content:space-between}
+.stack{display:flex;flex-direction:column;gap:12px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow)}
+.pad{padding:16px}
+.eyebrow{font:500 11px/1.2 var(--f-head);letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+.pagehead{display:flex;gap:16px;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;margin-bottom:18px}
+.pagehead h1{font-size:28px;line-height:1.1}
+.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:16px}
+@media (max-width:760px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.kpi{padding:14px 16px}
+.kpi .v{font:700 30px/1 var(--f-head);margin-top:6px;font-variant-numeric:tabular-nums}
+.kpi .s{font-size:12px;color:var(--muted);margin-top:4px}
+.grid2{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:16px}
+@media (max-width:860px){.grid2{grid-template-columns:minmax(0,1fr)}}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chip{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:5px 12px;font:500 13px var(--f-body);cursor:pointer;color:var(--muted)}
+.chip[aria-pressed="true"]{background:var(--nad-soft);border-color:var(--nad);color:var(--nad)}
+.search{flex:1;min-width:160px;height:40px;border:1px solid var(--line);border-radius:999px;padding:0 16px;background:var(--surface)}
+.list{display:flex;flex-direction:column;gap:10px}
+.acard{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:14px;align-items:center;padding:14px 16px;cursor:pointer;text-align:left;width:100%;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow)}
+.acard:hover{border-color:var(--nad)}
+.acard h3{font-size:18px}
+.acard .meta{font-size:13px;color:var(--muted);display:flex;gap:10px;flex-wrap:wrap}
+.pbar{height:6px;border-radius:9px;background:var(--na-soft);overflow:hidden;margin-top:8px}
+.pbar i{display:block;height:100%;background:var(--nad)}
+.pill{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:3px 10px;font:500 12px/1.4 var(--f-body);white-space:nowrap}
+.pill.ok{background:var(--ok-soft);color:var(--ok)} .pill.nok{background:var(--nok-soft);color:var(--nok)}
+.pill.warn{background:var(--warn-soft);color:var(--warn)} .pill.na{background:var(--na-soft);color:var(--na)}
+.pill.nad{background:var(--nad-soft);color:var(--nad)}
+.grade{font:700 13px/1 var(--f-head);width:26px;height:26px;border-radius:7px;display:inline-grid;place-items:center;color:#fff}
+.g-A{background:var(--sev1)} .g-B{background:#5aa02c} .g-C{background:var(--sev3)} .g-D{background:var(--sev4)} .g-x{background:var(--na)}
+.ring{position:relative;width:64px;height:64px;flex:none}
+.ring svg{width:100%;height:100%;transform:rotate(-90deg)}
+.ring b{position:absolute;inset:0;display:grid;place-items:center;font:700 17px var(--f-head);font-variant-numeric:tabular-nums}
+.empty{padding:36px 20px;text-align:center}
+.empty h2{font-size:22px;margin-bottom:6px}
+.chartwrap{overflow-x:auto}
+.chart text{fill:var(--muted);font:11px var(--f-body)}
+/* execution */
+.exechead{position:sticky;top:calc(56px + env(safe-area-inset-top,0px));z-index:10;background:var(--bg);padding-block:10px;margin-bottom:6px;border-bottom:1px solid var(--line)}
+.secnav{display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;scrollbar-width:thin}
+.secnav button{flex:none;border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:6px 10px;font:500 12px var(--f-body);cursor:pointer;display:flex;gap:6px;align-items:center;color:var(--fg)}
+.secnav button .dot{width:8px;height:8px;border-radius:50%;background:var(--na-soft);border:1px solid var(--line)}
+.secnav button.done .dot{background:var(--ok);border-color:var(--ok)} .secnav button.has-nok .dot{background:var(--nok);border-color:var(--nok)}
+.section{margin-top:22px;scroll-margin-top:170px}
+.section > header{display:flex;align-items:baseline;gap:10px;margin-bottom:10px}
+.section > header h2{font-size:20px}
+.section > header .mono{color:var(--nad);font-size:13px}
+.item{background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--line);border-radius:var(--r);padding:14px 14px 12px;margin-bottom:10px}
+.item.s-imp,.item.s-meas{border-left-color:var(--warn)} .item.s-ok{border-left-color:var(--ok)} .item.s-nok{border-left-color:var(--nok)} .item.s-na{border-left-color:var(--na)}
+.ihead{display:flex;justify-content:space-between;gap:8px;align-items:center}
+.code{font:500 12px var(--f-mono);color:var(--nad)}
+.wt{display:flex;gap:3px} .wt i{width:6px;height:6px;border-radius:50%;background:var(--line)} .wt i.on{background:var(--nad)}
+.itext{margin:6px 0 4px;font-size:15px}
+.hint{font-size:13px;color:var(--muted);margin:0 0 6px}
+.seg{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:10px;max-width:420px}
+.seg button{min-height:44px;border-radius:9px;border:1.5px solid var(--line);background:var(--surface-2);font:700 14px var(--f-head);letter-spacing:.04em;cursor:pointer;color:var(--muted)}
+.seg button[aria-pressed="true"].ok{background:var(--ok);border-color:var(--ok);color:#fff}
+.seg button[aria-pressed="true"].nok{background:var(--nok);border-color:var(--nok);color:#fff}
+.seg button[aria-pressed="true"].na{background:var(--na);border-color:var(--na);color:#fff}
+.meas{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;align-items:center}
+.meas label{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--muted)}
+.meas input{width:110px;height:40px;border:1px solid var(--line);border-radius:8px;padding:0 10px;background:var(--surface-2);font-family:var(--f-mono)}
+.iact{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;align-items:center}
+.thumbs{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.thumb{position:relative;width:76px;height:76px;border-radius:8px;overflow:hidden;border:1px solid var(--line);background:var(--na-soft);padding:0;cursor:zoom-in}
+.thumb img{width:100%;height:100%;object-fit:cover;display:block}
+.thumb .x{position:absolute;top:3px;right:3px;width:22px;height:22px;border-radius:50%;border:0;background:rgba(0,0,0,.6);color:#fff;font-size:14px;line-height:22px;cursor:pointer}
+.thumb.loading{display:grid;place-items:center;font-size:11px;color:var(--muted);cursor:default}
+textarea.note,.field textarea{width:100%;min-height:64px;border:1px solid var(--line);border-radius:8px;padding:8px 10px;background:var(--surface-2);resize:vertical;margin-top:10px}
+.need{font-size:12px;color:var(--warn);display:flex;gap:4px;align-items:center}
+.lockbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;background:var(--nad-soft);color:var(--nad);border-radius:var(--r);padding:10px 14px;margin-top:10px;font-size:14px}
+.finish{margin-top:26px;padding:18px}
+/* forms / sheets */
+.sheet-bg{position:fixed;inset:0;z-index:50;background:rgba(20,10,20,.5);display:flex;align-items:flex-end;justify-content:center}
+@media (min-width:761px){.sheet-bg{align-items:center}}
+.sheet{background:var(--surface);width:100%;max-width:620px;max-height:92vh;overflow:auto;border-radius:16px 16px 0 0;padding:20px max(18px,env(safe-area-inset-right,0px)) calc(20px + env(safe-area-inset-bottom,0px)) max(18px,env(safe-area-inset-left,0px))}
+@media (min-width:761px){.sheet{border-radius:16px}}
+.sheet h2{font-size:22px;margin-bottom:12px}
+.field{display:flex;flex-direction:column;gap:5px;margin-bottom:12px;min-width:0}
+.field > span{font:500 12px var(--f-body);color:var(--muted);letter-spacing:.02em}
+.field input,.field select{height:42px;border:1px solid var(--line);border-radius:8px;padding:0 10px;background:var(--surface-2);width:100%}
+.fgrid{display:grid;grid-template-columns:1fr 1fr;gap:0 12px}
+@media (max-width:520px){.fgrid{grid-template-columns:1fr}}
+.people{display:flex;gap:6px;flex-wrap:wrap;margin-top:4px}
+.person{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:999px;padding:3px 8px 3px 3px;font-size:13px;background:var(--surface-2)}
+.person img{width:22px;height:22px;border-radius:50%}
+.person button{border:0;background:none;cursor:pointer;color:var(--muted);font-size:15px;padding:0 2px}
+.picker{position:relative}
+.picker .res{position:absolute;left:0;right:0;top:100%;z-index:5;background:var(--surface);border:1px solid var(--line);border-radius:8px;box-shadow:var(--shadow);margin-top:4px;overflow:hidden}
+.picker .res button{display:flex;gap:8px;align-items:center;width:100%;padding:8px 10px;border:0;background:none;cursor:pointer;text-align:left}
+.picker .res button:hover{background:var(--nad-soft)}
+.picker .res img{width:24px;height:24px;border-radius:50%}
+/* actions */
+.xcard{display:grid;grid-template-columns:6px minmax(0,1fr) auto;gap:12px;padding:12px 14px 12px 0;cursor:pointer;width:100%;text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+.xcard:hover{border-color:var(--nad)}
+.xcard .sev{border-radius:0 4px 4px 0}
+.xcard > .pill{align-self:center}
+.sev-Low{background:var(--sev1)} .sev-Medium{background:var(--sev2)} .sev-High{background:var(--sev3)} .sev-Critical{background:var(--sev4)}
+.xcard h3{font:500 15px/1.35 var(--f-body)}
+.xcard .meta{font-size:12px;color:var(--muted);display:flex;gap:10px;flex-wrap:wrap;margin-top:4px}
+.flow{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin:12px 0 16px}
+.flow div{border-top:4px solid var(--line);padding-top:6px;font:500 12px var(--f-body);color:var(--muted)}
+.flow div.on{border-color:var(--nad);color:var(--fg)}
+.flow div.okd{border-color:var(--ok);color:var(--fg)}
+.valid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media (max-width:520px){.valid{grid-template-columns:1fr}}
+.vslot{border:1px dashed var(--line);border-radius:var(--r);padding:12px;display:flex;flex-direction:column;gap:8px}
+.vslot.ok{border:1px solid var(--ok);background:var(--ok-soft)} .vslot.nok{border:1px solid var(--nok);background:var(--nok-soft)}
+/* report */
+.report{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);overflow:hidden;box-shadow:var(--shadow)}
+.rband{background:var(--bar);color:#fff;padding:18px 20px;display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;align-items:flex-end}
+.rband h1{font-size:26px;color:#fff} .rband .eyebrow{color:rgba(255,255,255,.8)}
+.rsec{padding:18px 20px;border-top:1px solid var(--line)}
+.rsec h2{font-size:18px;margin-bottom:12px;display:flex;gap:10px;align-items:baseline}
+.idgrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px 16px}
+@media (max-width:700px){.idgrid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.idgrid div span{display:block;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
+.idgrid div b{font-weight:500}
+.scorebox{display:grid;grid-template-columns:auto minmax(0,1fr) minmax(0,1.2fr);gap:20px;align-items:center}
+@media (max-width:860px){.scorebox{grid-template-columns:minmax(0,1fr)}}
+.bigring{width:150px;height:150px;position:relative;margin:auto}
+.bigring svg{width:100%;height:100%;transform:rotate(-90deg)}
+.bigring div{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.bigring b{font:700 40px/1 var(--f-head);font-variant-numeric:tabular-nums}
+.bars{display:flex;flex-direction:column;gap:7px}
+.bar{display:grid;grid-template-columns:minmax(0,1fr) 120px 42px;gap:8px;align-items:center;font-size:13px}
+.bar .t{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bar .tr{height:8px;border-radius:9px;background:var(--na-soft);overflow:hidden}
+.bar .tr i{display:block;height:100%}
+.bar .n{text-align:right;font-family:var(--f-mono);font-size:12px}
+.turb{max-width:240px;margin:auto}
+.turb .lbl{fill:var(--muted);font:10px var(--f-body)}
+@media (prefers-reduced-motion:no-preference){.rotor{animation:spin 14s linear infinite;transform-origin:52px 82px}}
+@keyframes spin{to{transform:rotate(360deg)}}
+.legend{display:flex;gap:10px;flex-wrap:wrap;font-size:12px;color:var(--muted);justify-content:center;margin-top:6px}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:4px;vertical-align:-1px}
+.finding{display:grid;grid-template-columns:minmax(0,1fr);gap:6px;padding:12px 0;border-bottom:1px solid var(--line)}
+.finding:last-child{border-bottom:0}
+.tbl{overflow-x:auto}
+.tbl table{border-collapse:collapse;width:100%;font-size:13px}
+.tbl th{background:var(--bar);color:#fff;text-align:left;font:500 12px var(--f-body);padding:7px 10px;white-space:nowrap}
+.tbl td{border-bottom:1px solid var(--line);padding:7px 10px;vertical-align:top}
+.gallery{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:8px}
+.gallery .thumb{width:100%;height:auto;aspect-ratio:1;max-width:100%}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(84px + env(safe-area-inset-bottom,0px));z-index:60;background:var(--fg);color:var(--bg);padding:10px 16px;border-radius:999px;font-size:14px;box-shadow:var(--shadow);max-width:calc(100% - 32px)}
+.lightbox{position:fixed;inset:0;z-index:70;background:rgba(0,0,0,.88);display:flex;align-items:center;justify-content:center;padding:max(16px,env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) max(16px,env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
+.lightbox img{max-width:100%;max-height:100%;border-radius:6px}
+.lightbox button{position:absolute;top:calc(12px + env(safe-area-inset-top,0px));right:calc(12px + env(safe-area-inset-right,0px));width:44px;height:44px;border-radius:50%;border:0;background:rgba(255,255,255,.15);color:#fff;font-size:22px;cursor:pointer}
+.notice{background:var(--warn-soft);color:var(--warn);border-radius:var(--r);padding:10px 14px;font-size:14px;margin-bottom:14px}
+.tplb{display:inline-block;font:700 10px/1 var(--f-head);letter-spacing:.08em;padding:3px 6px;border-radius:4px;vertical-align:1px}
+.tplb.tpl-WTQCIA{background:var(--nad);color:var(--on-nad)} .tplb.tpl-LEA{background:var(--fg);color:var(--bg)} .tplb.tpl-WOQCIA{background:#4a3f4c;color:#fff} .tplb.tpl-SWQCIA{background:var(--nad-2);color:#fff} .tplb.tpl-SVSC{background:var(--surface);color:var(--nad);box-shadow:inset 0 0 0 1.5px var(--nad)}
+.tpick{display:flex;flex-direction:column;gap:6px;text-align:left;padding:14px 16px;border:1.5px solid var(--line);border-radius:var(--r);background:var(--surface-2);cursor:pointer;color:var(--fg)}
+.tpick:hover,.tpick:focus-visible{border-color:var(--nad)}
+.tpick b{font:700 17px/1.2 var(--f-head)}
+.docic{width:48px;height:60px;border-radius:6px;background:var(--nad-soft);color:var(--nad);display:grid;place-items:center}
+.docic svg{width:26px;height:26px}
+.pages{display:flex;flex-direction:column;gap:14px;align-items:center}
+.pg{margin:0;width:100%;max-width:820px;background:#fff;border:1px solid var(--line);border-radius:6px;box-shadow:var(--shadow);overflow:hidden;scroll-margin-top:70px}
+.pg img{display:block;width:100%;height:auto;cursor:zoom-in}
+.pg figcaption{font-size:11px;color:#6a5f6c;text-align:right;padding:4px 10px;background:#faf8fa}
+.sigpad{width:100%;height:auto;aspect-ratio:600/220;border:1.5px dashed var(--nad);border-radius:10px;background:#fff;touch-action:none;cursor:crosshair}
+.signoff{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.3fr);gap:16px;align-items:center}
+@media (max-width:560px){.signoff{grid-template-columns:minmax(0,1fr)}}
+.sigbox{border:1px solid var(--line);border-radius:10px;background:#fff;min-height:96px;display:grid;place-items:center;padding:6px}
+.sigbox img{max-height:110px;width:auto}
+.abox{margin-top:26px}
+.qa{margin-top:12px;padding:12px;border:1px solid var(--nad);border-radius:var(--r);background:var(--nad-soft)}
+.arow{display:grid;grid-template-columns:6px minmax(0,1fr) auto;gap:12px;align-items:center;padding:10px 12px 10px 0;text-align:left;width:100%;background:var(--surface-2);border:1px solid var(--line);border-radius:10px;cursor:pointer;color:var(--fg);overflow:hidden}
+.arow:hover{border-color:var(--nad)} .arow .sev{align-self:stretch;border-radius:0 4px 4px 0} .arow b{font-weight:500;display:block}
+.arow .meta{font-size:12px;color:var(--muted);display:flex;gap:10px;flex-wrap:wrap}
+.seg.scale{max-width:640px} .seg.n4{grid-template-columns:repeat(4,1fr)}
+@media (max-width:560px){.seg.n4{grid-template-columns:repeat(2,1fr)}}
+.seg.scale button{font:500 13px/1.2 var(--f-body);letter-spacing:0;padding:6px 8px}
+.seg button[aria-pressed="true"].imp,.seg button[aria-pressed="true"].meas{background:var(--warn);border-color:var(--warn);color:#fff}
+.flowline{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:8px 0 2px}
+.flowline span{background:var(--nad-soft);color:var(--nad);border-radius:6px;padding:4px 9px;font:500 12px var(--f-body)}
+.flowline i{color:var(--nad);font-style:normal;font-weight:700}
+.imp3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:6px}
+@media (max-width:700px){.imp3{grid-template-columns:minmax(0,1fr)}}
+.imp3 label span{font:500 12px var(--f-body);color:var(--muted)} .imp3 textarea{margin-top:4px}
+.impcard{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:6px;border-left:3px solid var(--warn);padding:8px 12px;background:var(--warn-soft);border-radius:0 8px 8px 0}
+@media (max-width:700px){.impcard{grid-template-columns:minmax(0,1fr)}}
+.impcard span{font:500 11px var(--f-head);letter-spacing:.08em;text-transform:uppercase;color:var(--warn)} .impcard p{margin:2px 0 0;font-size:14px}
+.plan .plbl{font:500 9px Roboto,Arial,sans-serif;fill:#1d1620;paint-order:stroke;stroke:#fff;stroke-width:2.6px;stroke-linejoin:round} .plan .plbl.dark{fill:var(--muted);stroke:none}
+.fab{display:none}
+@media (max-width:760px){.fab{display:inline-flex;position:fixed;right:max(16px,env(safe-area-inset-right,0px));bottom:calc(76px + env(safe-area-inset-bottom,0px));z-index:15;box-shadow:var(--shadow)} .hide-m{display:none}}
+</style>
+
+<header class="top"><div class="top-in">
+  <button class="brand" id="brand" aria-label="Home"><b>nadara</b><span>Quality &amp; Continuous Improvement Assessments</span></button>
+  <nav class="tabs" id="tabs"></nav>
+  <div class="me" id="me"></div>
+</div></header>
+<main id="main"></main>
+<nav class="bottomnav" id="bnav"></nav>
+<div id="overlay"></div>
+
+<script>
+// Lifetime Extension Assessment — Vestas V80 & V90 1.8/2.0 MW — control points (I-codes, weight 3=structural/safety, 2=major, 1=minor)
+// m = measurement {u: unit, max?: limit (value > max ⇒ nOK), n?: count of values}; p = photo rule: 'always' | 'nok'; t = 'info' (record only)
+const LEA_SECTIONS = [
+ {id:'S01', zone:'foundation', t:'Foundation', items:[
+  ['I01.010','All tower foundation flange bolts are torqued.',3],
+  ['I01.020','Foundation movement inspected; record the 2 dial indicator readings.',3,{m:{u:'mm',n:2}}],
+  ['I01.030','Concrete foundation free of cracks (visual inspection). Photograph any defect with its exact location.',3,{p:'nok'}],
+  ['I01.040','Sealing between tower and foundation in good condition (visual inspection and spot check).',2,{p:'always',h:'Photograph the sealing condition.'}],
+ ]},
+ {id:'S02', zone:'tower', t:'Tower', items:[
+  ['I02.010','Outside flange connections free of defects (once after 20 years lifetime).',3,{p:'nok'}],
+  ['I02.020','Inside flange connections free of defects (once after 20 years lifetime).',3,{p:'nok'}],
+  ['I02.030','Inside welds free of corrosion, cracks or other defects.',3,{p:'nok'}],
+  ['I02.040','Type plate and serial number of each tower section photographed.',1,{p:'always'}],
+  ['I02.050','Outside welds free of corrosion, cracks or other defects (inspection with a telescope).',3,{p:'nok'}],
+  ['I02.060','All tower flange bolts are torqued.',3],
+ ]},
+ {id:'S03', zone:'yaw', t:'Yaw bearing system', items:[
+  ['I03.010','All top flange bolts are torqued.',3],
+  ['I03.020','All claw beam bolts are torqued.',2],
+  ['I03.030','End-stop bolts of the radial slide plates checked.',2],
+  ['I03.040','Play in the yaw system measured and recorded.',2,{m:{u:'mm'}}],
+  ['I03.050','Spring package under the claw beam adjusted: bolts tightened to 200 Nm, loosened 120°, lock nut tightened.',2],
+  ['I03.060','Teeth of the yaw ring and yaw pinion wheels free of defects.',2,{p:'nok'}],
+ ]},
+ {id:'S04', zone:'nacelle', t:'Nacelle base frame', items:[
+  ['I04.010','Rear top corners (both sides) free of cracks. If cracks are found, report to Nadara technical department.',3,{p:'nok'}],
+  ['I04.020','Rear lower corners free of cracks (only when cracks were found in the rear top corners).',3,{p:'nok'}],
+  ['I04.030','Welds in the front and middle sections free of cracks.',3,{p:'nok'}],
+ ]},
+ {id:'S05', zone:'nacelle', t:'Support brackets – nacelle controller section', items:[
+  ['I05.010','Support brackets in the nacelle controller section free of cracks.',2,{p:'nok'}],
+ ]},
+ {id:'S06', zone:'nacelle', t:'Nacelle cover', items:[
+  ['I06.010','All nacelle cover bolts tightened (visual check).',1],
+  ['I06.020','Fittings to the nacelle cover free of cracks.',2,{p:'nok'}],
+  ['I06.030','Fibreglass around the fittings free of cracks.',2,{p:'nok'}],
+  ['I06.040','Sound insulation correctly installed and not damaged.',1],
+  ['I06.050','Outer roof rail bolt connections tight.',2],
+  ['I06.060','Outer roof rail free of cracks.',2,{p:'nok'}],
+  ['I06.070','Fibreglass free of cracks at all roof rail attachment points.',2,{p:'nok'}],
+ ]},
+ {id:'S07', zone:'hub', t:'Nose cone', items:[
+  ['I07.010','Torque level of the bolts between the nose cone support and the hub checked.',2],
+  ['I07.020','No loose bolts where fittings are attached to the fibreglass.',2],
+  ['I07.030','Nose cone fibreglass free of cracks around the bolt connections.',2,{p:'nok'}],
+  ['I07.040','Nose cone support undamaged (no broken pipe). If a pipe is broken, repair according to the manufacturer instructions.',2,{p:'nok'}],
+ ]},
+ {id:'S08', zone:'nacelle', t:'Main shaft', items:[
+  ['I08.010','Main shaft free of corrosion and cracks (visual inspection).',3,{p:'nok'}],
+  ['I08.020','Area around the main bearings fully inspected, no defects.',3,{p:'nok'}],
+  ['I08.030','Foundation feet of the main bearing housing free of cracks. If a crack is found, mark its start and end with a pen and record its length.',3,{p:'nok',m:{u:'mm'}}],
+  ['I08.040','V80 with cast main frame: pin installed between the main frame and the bearing housing.',2],
+  ['I08.050','All bolts between the main shaft and the hub torqued correctly.',3],
+  ['I08.060','All bolts between the main foundation and the main bearing housing torqued correctly.',3],
+ ]},
+ {id:'S09', zone:'nacelle', t:'Torque arms and torque arm bolts', items:[
+  ['I09.010','Right-hand torque arms free of cracks (record crack length if any).',3,{p:'nok',m:{u:'mm'}}],
+  ['I09.020','Left-hand torque arms free of cracks (record crack length if any).',3,{p:'nok',m:{u:'mm'}}],
+  ['I09.030','Torque arm bolts between torque arms and gearbox torqued.',3],
+  ['I09.040','Torque arm bolts on top of the rubber dampers torqued.',2],
+  ['I09.050','Torque arm bolts between torque arms and base frame torqued.',3],
+ ]},
+ {id:'S10', zone:'nacelle', t:'Gearbox housing and torque arm plate', items:[
+  ['I10.010','Gearbox housing free of cracks.',3,{p:'nok'}],
+  ['I10.020','Left-hand front plate of the gearbox free of cracks (record crack length if any).',3,{p:'nok',m:{u:'mm'}}],
+  ['I10.030','Right-hand front plate of the gearbox free of cracks (record crack length if any).',3,{p:'nok',m:{u:'mm'}}],
+  ['I10.040','PLH 1400: weld between planetary and helical stage at 3 o’clock free of cracks.',3,{p:'nok',m:{u:'mm'}}],
+  ['I10.050','PLH 1400: front plate free of cracks.',3,{p:'nok',m:{u:'mm'}}],
+ ]},
+ {id:'S11', zone:'hub', t:'Hub', items:[
+  ['I11.010','All bolts between the blade bearings and the hub torqued correctly.',3],
+  ['I11.020','All bolts between the blade bearings and the blades tightened correctly.',3],
+  ['I11.030','Sine test done (min. 1 full cycle / lubrication stroke); blade bearings operate evenly without noise. If not, photograph the defect, type plate and serial number of each blade bearing.',3,{p:'nok'}],
+ ]},
+ {id:'S12', zone:'hub', t:'Pitch system', items:[
+  ['I12.010','Pitch and brake accumulators within their expiry date.',2],
+  ['I12.020','All bolts in each half of the cylinder holder torqued.',2],
+  ['I12.030','All bolts in each crank arm block torqued.',2],
+  ['I12.040','All M20 locking bolts in the plain bearing housings torqued.',2],
+  ['I12.050','Axial clearance in the cylinder holder (visual, audio and measured). Above 0.8 mm: replace the slide bushings.',2,{m:{u:'mm',max:0.8}}],
+  ['I12.060','Total play in the cylinder holder. Above 1.2 mm: replace the slide bushings.',2,{m:{u:'mm',max:1.2}}],
+  ['I12.070','Calculated play. Above 0.8 mm: replace the slide bushings.',2,{m:{u:'mm',max:0.8}}],
+  ['I12.080','Radial clearance in the plain bearing between torque arm shaft and hydraulic cylinder rod. Above 0.5 mm: replace the plain bearing.',2,{m:{u:'mm',max:0.5}}],
+  ['I12.090','End thread of the hydraulic cylinder free of cracks (both rubber sleeve ends removed).',3,{p:'nok'}],
+  ['I12.100','Piston rod free of scratches or wear; packing boxes undamaged. If marks are found, check for oil in the hoses to the leakage oil container; oil found = replace the cylinder.',2,{p:'nok'}],
+  ['I12.110','No hydraulic oil leaks from the cylinder (cylinder hose removed, blade pitched a few times).',2],
+  ['I12.120','Rubber sleeves undamaged.',1],
+  ['I12.130','Hydraulic system free of leakage.',2],
+  ['I12.140','Pitch cylinder trunnions lubricated with 5 g of grease.',1],
+ ]},
+ {id:'S13', zone:'blades', t:'Blades', items:[
+  ['I13.010','Blade history recorded: repairs or upgrades done during the lifetime (copper caps, LEP, AAOs) and spar reinforcement installed or not.',1,{t:'info',h:'Write the history in the note.'}],
+  ['I13.020','External drone inspection: full surface and all edges (WW, LW, TE, LE), min. 6 photos per edge / 24 per blade; zoomed photos of all external LPS components.',3,{p:'always'}],
+  ['I13.030','One blade inspection report per blade (A, B, C) submitted to Nadara technical department.',2,{h:'Write the report references of blades A, B and C in the note.'}],
+  ['I13.040','Thermographic inspection of the spar/shell bondline on both shells (WW, LW) done with drone and thermographic camera.',3,{p:'always'}],
+  ['I13.050','Inner surface of the blade root free of damage, defects or impurities (inspection with a torch).',2,{p:'nok'}],
+  ['I13.060','Spar reinforcement free of damage or debonding (n/a when not installed).',3,{p:'nok'}],
+ ]},
+ {id:'S14', zone:'transformer', t:'Transformer and transformer room', items:[
+  ['I14.010','General inspection of the transformer and transformer room done.',2],
+  ['I14.020','Top support of the transformer frame free of cracks and broken components (rubber dampers).',2,{p:'nok'}],
+  ['I14.030','Both transformer support brackets free of incipient cracks. If cracks are found, photograph and speak to the supervisor before re-energising.',3,{p:'nok'}],
+  ['I14.040','All 4 bolts on each of the 2 support brackets checked.',2],
+ ]},
+ {id:'S15', zone:'nacelle', t:'Electrical chain hoist', items:[
+  ['I15.010','Crane structure undamaged (visual inspection).',2],
+  ['I15.020','Chain hoist suspension free of cracks (visual inspection).',3,{p:'nok'}],
+  ['I15.030','Operating time read from the hour counter.',1,{t:'info',m:{u:'h'}}],
+  ['I15.040','Remaining hours (SWP) calculated.',1,{t:'info',m:{u:'h'}}],
+ ]},
+ {id:'S16', zone:'tower', t:'Service lift', items:[
+  ['I16.010','Overhaul inspection done (after 20 years lifetime, then every 250 h Avanti / 200 h PowerClimber of use).',3],
+  ['I16.020','All safety device components replaced according to the supplier overhaul instructions.',3],
+  ['I16.030','All wear items replaced, including all items the steel wire rope has rubbed against.',2],
+ ]},
+];
+
+// Wind Turbine Quality & Continuous Improvement Assessment — field walk-down, all Nadara turbine types (Q-codes)
+const WTQ_SECTIONS = [
+ {id:'Q01', zone:'foundation', t:'Site access, tower base and signage', items:[
+  ['Q01.010','Access road, platform and turbine surroundings safe and clear (no obstacles, no erosion, no vegetation against the tower).',2,{p:'nok'}],
+  ['Q01.020','Turbine identification, safety and warning signs present and legible at the tower entrance.',2,{p:'nok'}],
+  ['Q01.030','Tower door, seals and lock in good condition; door closes and locks correctly.',1,{p:'nok'}],
+  ['Q01.040','Fire extinguisher and first-aid kit present, sealed and within inspection date.',3,{p:'nok'}],
+  ['Q01.050','Emergency lighting and tower lighting working.',2],
+  ['Q01.060','Foundation, sealing and tower base flange free of visible damage, water ingress or corrosion.',2,{p:'nok'}],
+ ]},
+ {id:'Q02', zone:'tower', t:'Safety equipment and access systems', items:[
+  ['Q02.010','Ladder, fall-arrest rail and anchor points undamaged and free of contamination.',3,{p:'nok'}],
+  ['Q02.020','Service lift inspection label valid; lift and its safety devices work (when installed).',3,{p:'nok'}],
+  ['Q02.030','Rescue and evacuation kit present, complete and within inspection date.',3,{p:'nok'}],
+  ['Q02.040','Platform hatches, guard rails and kick plates complete and closing correctly.',2,{p:'nok'}],
+  ['Q02.050','Nacelle anchor points and roof access in good condition.',2,{p:'nok'}],
+ ]},
+ {id:'Q03', zone:'tower', t:'Documentation and records', items:[
+  ['Q03.010','Turbine logbook on site and up to date.',2],
+  ['Q03.020','Current Nadara SWIs and site LOTO documentation available for the turbine.',2],
+  ['Q03.030','Last preventive maintenance completed and recorded in the CMMS, checklists filled in.',2],
+  ['Q03.040','Open work orders and findings from the previous assessment reviewed.',1,{h:'Write the open items in the note.'}],
+  ['Q03.050','Turbine run hours and production recorded.',1,{t:'info',m:{u:'h'}}],
+ ]},
+ {id:'Q04', zone:'tower', t:'Tower, cables and platforms', items:[
+  ['Q04.010','Tower flange bolts carry torque marks; no loose or missing bolts.',3,{p:'nok'}],
+  ['Q04.020','Power cables and cable loop free of chafing, twisting beyond limit or damaged sheaths.',3,{p:'nok'}],
+  ['Q04.030','Cable clamps, saddles and supports complete and tight.',2,{p:'nok'}],
+  ['Q04.040','Platforms clean and dry: no oil, water, debris or loose material.',1,{p:'nok'}],
+  ['Q04.050','No signs of water ingress, condensation or corrosion inside the tower.',2,{p:'nok'}],
+ ]},
+ {id:'Q05', zone:'yaw', t:'Yaw system', items:[
+  ['Q05.010','Yaw gear teeth lubricated and free of damage.',2,{p:'nok'}],
+  ['Q05.020','Yaw brakes / pads free of oil contamination; no abnormal dust.',2,{p:'nok'}],
+  ['Q05.030','Yaw drives free of oil leaks; oil level correct.',2,{p:'nok'}],
+  ['Q05.040','No abnormal noise or vibration during yawing.',2],
+ ]},
+ {id:'Q06', zone:'nacelle', t:'Nacelle housekeeping', items:[
+  ['Q06.010','Nacelle clean: no oil or grease on floor and components, no waste left behind.',2,{p:'always',h:'Photograph the general nacelle condition.'}],
+  ['Q06.020','No tools, consumables or parts left in the nacelle after maintenance.',2,{p:'nok'}],
+  ['Q06.030','Nacelle fire extinguisher present, sealed and within inspection date.',3,{p:'nok'}],
+  ['Q06.040','Nacelle cover, hatches and seals intact; no water ingress.',2,{p:'nok'}],
+  ['Q06.050','Lighting and emergency stop buttons working.',3],
+  ['Q06.060','Crane / chain hoist in good condition with valid inspection.',2,{p:'nok'}],
+ ]},
+ {id:'Q07', zone:'nacelle', t:'Drivetrain', items:[
+  ['Q07.010','Main bearing free of grease leaks; grease purge normal; lubrication system level correct.',2,{p:'nok'}],
+  ['Q07.020','Gearbox oil level correct; no leaks at seals, covers or hoses.',3,{p:'nok'}],
+  ['Q07.030','Gearbox oil filters and breather within service interval.',2],
+  ['Q07.040','No abnormal noise, vibration or temperature on the drivetrain during operation.',3],
+  ['Q07.050','Coupling and brake disc in good condition; brake pads within wear limit.',2,{p:'nok'}],
+  ['Q07.060','Generator: brushes, slip ring and terminal box in good condition, no carbon dust build-up.',2,{p:'nok'}],
+  ['Q07.070','Torque arm / gearbox support elastomers undamaged.',2,{p:'nok'}],
+  ['Q07.080','Bolted joints of the drivetrain carry torque marks.',3,{p:'nok'}],
+ ]},
+ {id:'Q08', zone:'nacelle', t:'Hydraulics and lubrication', items:[
+  ['Q08.010','Hydraulic unit, hoses and fittings free of leaks; oil level correct.',2,{p:'nok'}],
+  ['Q08.020','Hydraulic accumulators within their expiry date and pre-charge.',2],
+  ['Q08.030','Automatic lubrication units filled, working and free of blocked lines.',2,{p:'nok'}],
+  ['Q08.040','Correct lubricants used and labelled according to the lubricant list.',1],
+ ]},
+ {id:'Q09', zone:'nacelle', t:'Electrical cabinets and converter', items:[
+  ['Q09.010','Cabinets closed and locked; door seals and cable glands intact.',2,{p:'nok'}],
+  ['Q09.020','No loose, damaged or overheated cables and terminals (visual, no work on energised circuits).',3,{p:'nok'}],
+  ['Q09.030','Cabinet filters and fans clean and working.',1,{p:'nok'}],
+  ['Q09.040','Labels, diagrams and warning signs present and legible.',1],
+  ['Q09.050','No active or recurring fault codes in the controller.',2,{h:'Write the recurring fault codes in the note.'}],
+ ]},
+ {id:'Q10', zone:'hub', t:'Hub and pitch system', items:[
+  ['Q10.010','Hub clean; no loose objects, grease or oil accumulation.',2,{p:'always',h:'Photograph the general hub condition.'}],
+  ['Q10.020','Blade bearing and hub bolts carry torque marks.',3,{p:'nok'}],
+  ['Q10.030','Pitch drives / cylinders free of leaks; pitch batteries or accumulators within date.',3,{p:'nok'}],
+  ['Q10.040','Blade bearing seals intact; no grease leaks.',2,{p:'nok'}],
+  ['Q10.050','Nose cone / spinner and its supports undamaged.',2,{p:'nok'}],
+ ]},
+ {id:'Q11', zone:'blades', t:'Blades and lightning protection', items:[
+  ['Q11.010','No visible blade damage from ground or nacelle inspection (leading edge erosion, cracks, lightning marks).',3,{p:'nok'}],
+  ['Q11.020','Lightning protection: receptors, down-conductors and earthing brushes in good condition.',2,{p:'nok'}],
+  ['Q11.030','No abnormal blade noise during operation.',2],
+ ]},
+ {id:'Q12', zone:'transformer', t:'Transformer and medium voltage', items:[
+  ['Q12.010','Transformer area clean, locked and signed; no oil leaks.',3,{p:'nok'}],
+  ['Q12.020','Oil level, silica gel and temperature readings within limits (where applicable).',2,{p:'nok'}],
+  ['Q12.030','MV switchgear indicators normal; SF6 pressure in range (where applicable).',3,{p:'nok'}],
+ ]},
+ {id:'Q13', zone:'nacelle', t:'Quality of work after maintenance', items:[
+  ['Q13.010','Work done according to the applicable Nadara SWI (sequence, tools, values).',3],
+  ['Q13.020','Torque marks present on all bolts torqued during the last maintenance.',3,{p:'nok'}],
+  ['Q13.030','Calibrated tools used and recorded in the FORM.',2],
+  ['Q13.040','Replaced parts and consumables recorded; removed parts and waste taken down.',2],
+  ['Q13.050','Covers, guards and protections reinstalled after the work.',3,{p:'nok'}],
+  ['Q13.060','Findings from previous maintenance closed or tracked as actions.',2],
+ ]},
+ {id:'Q14', zone:'foundation', t:'Environment', items:[
+  ['Q14.010','Spill kit available on site and complete.',2],
+  ['Q14.020','Waste segregated and removed (oil, filters, rags, packaging).',2,{p:'nok'}],
+  ['Q14.030','No oil or chemical spills on the ground, platforms or tower.',3,{p:'nok'}],
+ ]},
+ {id:'Q15', zone:'tower', t:'Continuous improvement', items:[
+  ['Q15.010','Improvement opportunities identified (method, tool, spare part, SWI update).',1,{t:'info',h:'Describe each opportunity in the note and raise an action when needed.'}],
+  ['Q15.020','Recurring defects on this turbine or type identified and reported to Nadara technical department.',2,{h:'Write the recurring defects in the note.'}],
+  ['Q15.030','Critical spare parts and consumables available on site.',1],
+  ['Q15.040','Technician feedback on SWIs and FORMs collected.',1,{t:'info'}],
+ ]},
+];
+
+const ZONE_LABEL={foundation:'Foundation',tower:'Tower & lift',yaw:'Yaw system',nacelle:'Nacelle & drivetrain',hub:'Hub, nose cone & pitch',blades:'Blades',transformer:'Transformer'};
+// Service Vehicle Safety & Condition Check — Nadara service vans and cars (V-codes). d = date field label
+const SVC_SECTIONS = [
+ {id:'V01', zone:'cab', t:'Vehicle documentation', items:[
+  ['V01.010','Mandatory documents on board and complete: lease contract conditions (2 copies), single vehicle document, user and maintenance manual, insurance / green card (sticker on the windscreen), driver authorisation, tool declaration (when applicable).',2,{h:'Write any missing document in the note.'}],
+ ]},
+ {id:'V02', zone:'engine', t:'Fluids and brakes', items:[
+  ['V02.010','Engine oil level correct.',2],
+  ['V02.020','Brake fluid level correct.',3],
+  ['V02.030','Coolant / water level correct.',2],
+ ]},
+ {id:'V03', zone:'wheels', t:'Tyres and bodywork', items:[
+  ['V03.010','Front left tyre OK (tread depth, pressure, no cuts or bulges).',3,{p:'nok'}],
+  ['V03.020','Front right tyre OK (tread depth, pressure, no cuts or bulges).',3,{p:'nok'}],
+  ['V03.030','Rear left tyre OK (tread depth, pressure, no cuts or bulges).',3,{p:'nok'}],
+  ['V03.040','Rear right tyre OK (tread depth, pressure, no cuts or bulges).',3,{p:'nok'}],
+  ['V03.050','Bodywork in good condition.',1,{p:'nok',h:'Describe any damage in the note.'}],
+  ['V03.060','Spare bulbs available.',1],
+ ]},
+ {id:'V04', zone:'cargo', t:'Safety equipment', items:[
+  ['V04.010','High-visibility vest available.',2],
+  ['V04.020','Warning triangle available.',2],
+  ['V04.030','Fire extinguisher present and within inspection date.',3,{d:'Next inspection',p:'nok'}],
+  ['V04.040','First-aid kit present, in good condition and complete.',3,{p:'nok',h:'Check contents and expiry dates; write missing or expired items in the note.'}],
+  ['V04.050','Spill kit present, complete and within inspection date.',2,{d:'Next inspection'}],
+  ['V04.060','Rescue / evacuation equipment complete and within inspection date (n/a when not assigned to this vehicle).',3,{d:'Next inspection'}],
+  ['V04.070','Cones and signage available to mark the lifting area at the turbine.',2,{p:'nok'}],
+ ]},
+ {id:'V05', zone:'cargo', t:'PPE and electrical protection equipment', items:[
+  ['V05.010','PPE within inspection date.',3,{d:'Next inspection'}],
+  ['V05.020','Electrical protection equipment present and within inspection date: high-voltage gloves, low-voltage gloves, insulating mat, face visor.',3,{d:'Next inspection',h:'Write missing items or items without a validity label in the note.'}],
+ ]},
+ {id:'V06', zone:'cargo', t:'Tools, lifting equipment and chemicals', items:[
+  ['V06.010','Vehicle tools within inspection date.',2,{d:'Next inspection'}],
+  ['V06.020','Lifting equipment within inspection date.',3,{d:'Next inspection',p:'nok'}],
+  ['V06.030','Chemical products correctly labelled and stored.',2,{p:'nok'}],
+  ['V06.040','Tool storage cabinets correctly fixed, secured and in acceptable condition.',3,{p:'nok'}],
+ ]},
+ {id:'V07', zone:'lights', t:'Lighting and cargo area equipment', items:[
+  ['V07.010','Interior lighting present in the cargo area and sufficient.',2,{p:'nok'}],
+  ['V07.020','Exterior lighting or work floodlight installed on the vehicle for night work.',2,{p:'nok'}],
+  ['V07.030','Radio battery charging holder present in the cargo area.',1],
+ ]},
+ {id:'V08', zone:'cab', t:'Driver feedback', items:[
+  ['V08.010','Drivers report no issues with the vehicle (noises, warning lights, brakes, steering, air conditioning, other faults).',2,{h:'Ask the drivers and write their answers in the note.'}],
+  ['V08.020','Improvement suggestions from the drivers.',1,{t:'info',h:'Write the suggestions in the note.'}],
+ ]},
+];
+
+// Answer scales: [key, label, value (0–1, null = not scored), category ok|imp|meas|nok|na]
+const SCALES={
+ area:[['ok','Exists · adequate',1,'ok'],['imp','Improvement required',.5,'imp'],['nok','Not available',0,'nok'],['na','n/a',null,'na']],
+ ypn:[['ok','Yes',1,'ok'],['part','Partially',.5,'imp'],['nok','No',0,'nok'],['opp','Improvement opportunity',.75,'imp']],
+ noise:[['ok','Acceptable',1,'ok'],['imp','Improvement recommended',.66,'imp'],['meas','Measurement recommended',.33,'meas'],['nok','Action required',0,'nok']],
+ light:[['ok','Adequate',1,'ok'],['imp','Improvement recommended',.66,'imp'],['meas','Lighting measurement recommended',.33,'meas'],['nok','Inadequate',0,'nok']],
+ flow:[['ok','Defined and followed',1,'ok'],['imp','Partially',.5,'imp'],['nok','Not defined',0,'nok'],['na','n/a',null,'na']],
+};
+// Warehouse Operational Quality & Continuous Improvement Assessment (W-codes)
+const WH_SECTIONS=[
+ {id:'W01',zone:'flow',t:'Layout, defined areas & material flow',items:[
+  ['W01.010','Material receiving area.',2,{sc:'area',p:'nok'}],
+  ['W01.020','Material dispatch / outgoing area.',2,{sc:'area',p:'nok'}],
+  ['W01.030','Defective / quarantine area.',3,{sc:'area',p:'nok'}],
+  ['W01.040','Repaired parts reception area.',2,{sc:'area'}],
+  ['W01.050','Tool and special tool area.',2,{sc:'area'}],
+  ['W01.060','Calibrated tools area.',2,{sc:'area'}],
+  ['W01.070','Oils and chemical storage area.',3,{sc:'area',p:'nok'}],
+  ['W01.080','Waste / recycling area.',2,{sc:'area'}],
+  ['W01.090','Small repair / workbench area.',1,{sc:'area'}],
+  ['W01.100','Office area.',1,{sc:'area'}],
+  ['W01.110','Welfare / sanitary area.',2,{sc:'area'}],
+  ['W01.120','Incoming flow defined and followed.',3,{sc:'flow',flow:['Receiving','Inspection','Acceptance','Stock']}],
+  ['W01.130','Outgoing flow defined and followed.',2,{sc:'flow',flow:['Stock','Picking','Preparation','Dispatch']}],
+ ]},
+ {id:'W02',zone:'racks',t:'Racking & storage',items:[
+  ['W02.010','Racks and shelves in good condition (no damage, deformation or missing parts).',3,{p:'nok'}],
+  ['W02.020','Load capacity identified on racks where applicable.',3],
+  ['W02.030','Racks suited to the weight and size of the components stored.',3,{p:'nok'}],
+  ['W02.040','Aisles clear and wide enough for people and handling equipment.',3,{p:'nok'}],
+  ['W02.050','Heavy materials stored at low, safe positions.',3,{p:'nok'}],
+  ['W02.060','Locations based on usage frequency (fast movers near the dispatch area).',1],
+  ['W02.070','Separation by material type or platform where useful.',1],
+  ['W02.080','Materials protected against dust, humidity and corrosion.',2,{p:'nok'}],
+  ['W02.090','Stock easy to count during inventory.',1],
+  ['W02.100','Is the current racking layout the most appropriate considering material type, size, weight, usage frequency and material flow?',2,{sc:'ypn'}],
+ ]},
+ {id:'W03',zone:'racks',t:'Material identification & traceability',items:[
+  ['W03.010','Shelf / rack / position identification in place.',2],
+  ['W03.020','Item number on every material.',3],
+  ['W03.030','Material description on every material.',2],
+  ['W03.040','Quantity identified and consistent with the system.',2],
+  ['W03.050','No materials without identification.',3,{p:'nok'}],
+  ['W03.060','Obsolete materials identified and removed.',1,{p:'nok'}],
+ ]},
+ {id:'W04',zone:'quarantine',t:'Defective & repaired material',items:[
+  ['W04.010','Defective flow defined and followed.',3,{sc:'flow',flow:['Returned / removed','Identification','Quarantine','Repair / disposal']}],
+  ['W04.020','Repaired flow defined and followed.',3,{sc:'flow',flow:['Repair return','Document check','Inspection','Acceptance','Stock entry']}],
+  ['W04.030','New, used, repaired and defective parts cannot be confused (labels, colours, segregated locations).',3,{p:'nok'}],
+  ['W04.040','Defective parts tagged with reason, date and origin (turbine / work order).',2,{p:'nok'}],
+ ]},
+ {id:'W05',zone:'tools',t:'Tools, calibration & workshop',items:[
+  ['W05.010','Tools correctly stored and organised (shadow boards, cases, labelled drawers).',2,{p:'nok'}],
+  ['W05.020','Calibrated tools identified with serial number and calibration status.',3],
+  ['W05.030','Calibration due dates valid and certificates available.',3],
+  ['W05.040','Tools out of calibration segregated and labelled.',3,{p:'nok'}],
+  ['W05.050','Workbench appropriate, with bench vice.',1],
+  ['W05.060','Workbench lighting.',2,{sc:'light'}],
+  ['W05.070','Conditions suitable for small interventions and preparations.',1],
+ ]},
+ {id:'W06',zone:'handling',t:'Lifting & material handling',items:[
+  ['W06.010','Forklift available when needed, in good condition, inspection valid.',3,{p:'nok'}],
+  ['W06.020','Pallet truck available and in good condition.',2],
+  ['W06.030','Hoist / crane in good condition, inspection valid (when applicable).',3],
+  ['W06.040','Lifting accessories in good condition, SWL identified, certificates valid.',3,{p:'nok'}],
+  ['W06.050','Vehicle access suitable for loading and unloading.',2],
+  ['W06.060','No unnecessary manual handling risk.',3,{p:'nok'}],
+  ['W06.070','Are the available lifting and handling means adequate for the weight, size and frequency of the materials normally received and dispatched?',3,{sc:'ypn'}],
+ ]},
+ {id:'W07',zone:'building',t:'Building, office & welfare',items:[
+  ['W07.010','Floor in good condition, level and free of trip hazards.',2,{p:'nok'}],
+  ['W07.020','Doors and gates in good condition and working.',1],
+  ['W07.030','Roof without leaks; no water ingress or humidity.',2,{p:'nok'}],
+  ['W07.040','Temperature and ventilation suitable.',1],
+  ['W07.050','General lighting of the storage areas.',3,{sc:'light'}],
+  ['W07.060','Lighting of the work areas.',2,{sc:'light'}],
+  ['W07.070','General cleanliness and order.',3,{p:'always',h:'Photograph the general condition of the warehouse.'}],
+  ['W07.080','Office adequate in size and location.',2],
+  ['W07.090','Office lighting.',2,{sc:'light'}],
+  ['W07.100','Desks suitable and in good condition.',2],
+  ['W07.110','Chairs ergonomic and in good condition.',2],
+  ['W07.120','Sanitary facilities available in the number required for the size and occupancy (validate against internal and legal requirements).',2,{h:'Write the number of toilets and the occupancy in the note.'}],
+  ['W07.130','Sanitary facilities clean, with water and washbasin.',2],
+  ['W07.140','Meal area available and clean (when applicable).',1],
+ ]},
+ {id:'W08',zone:'safety',t:'Safety & emergency',items:[
+  ['W08.010','Fire extinguishers present, accessible and within inspection date.',3],
+  ['W08.020','Emergency exits marked and unobstructed.',3,{p:'nok'}],
+  ['W08.030','First-aid kit present and complete.',2],
+  ['W08.040','Spill kit present and complete.',2],
+  ['W08.050','Safety signage and floor markings in place.',2],
+ ]},
+ {id:'W09',zone:'waste',t:'Environmental & waste',items:[
+  ['W09.010','Waste containers labelled per waste stream and not overloaded.',2,{p:'nok'}],
+  ['W09.020','Oils and chemicals stored on retention / bund, with safety data sheets.',3,{p:'nok'}],
+  ['W09.030','No leaks or spills on the floor.',3,{p:'nok'}],
+ ]},
+ {id:'W10',zone:'ci',t:'Continuous improvement',items:[
+  ['W10.010','Improvement opportunities identified (layout, racking, flow, identification).',1,{t:'info',h:'Describe each opportunity and raise an action when needed.'}],
+  ['W10.020','Previous assessment actions closed or in progress.',2],
+ ]},
+];
+const WH_W={W01:15,W02:20,W03:15,W04:10,W05:10,W06:10,W07:5,W08:5,W09:5,W10:5};
+// Substation Workplace Quality & Continuous Improvement Assessment (B-codes)
+const SS_SECTIONS=[
+ {id:'B01',zone:'space',t:'Space utilization & organization',items:[
+  ['B01.010','Available space used safely and efficiently, considering the limits of a remote substation.',3,{sc:'ypn'}],
+  ['B01.020','General organisation and order.',2,{p:'always',h:'Photograph the general condition of each room.'}],
+  ['B01.030','Corridors and passages clear.',3,{p:'nok'}],
+  ['B01.040','Access to electrical equipment free.',3,{p:'nok'}],
+  ['B01.050','Materials do not interfere with technical areas.',3,{p:'nok'}],
+  ['B01.060','Temporary storage controlled and identified.',2],
+  ['B01.070','Existing shelves suited to the space.',1],
+  ['B01.080','Materials correctly identified.',2],
+  ['B01.090','Unnecessary materials removed.',2,{p:'nok'}],
+  ['B01.100','Realistic possibility to improve the layout.',1,{sc:'ypn'}],
+ ]},
+ {id:'B02',zone:'office',t:'Office & workstation conditions',items:[
+  ['B02.010','A dedicated office area exists, large enough for normal use.',2,{sc:'area'}],
+  ['B02.020','Office separated from the technical areas and not too close to the switchgear.',3,{p:'nok'}],
+  ['B02.030','Noise condition (switchgear and equipment; calls, meetings, administrative work).',3,{sc:'noise'}],
+  ['B02.040','No disturbing vibration.',1],
+  ['B02.050','Lighting condition (natural and artificial).',3,{sc:'light'}],
+  ['B02.060','Ventilation and thermal comfort.',2],
+  ['B02.070','Desk suitable, with space for documentation and computer.',2],
+  ['B02.080','Chair ergonomic and in good condition.',2],
+  ['B02.090','Power sockets available; cables organised.',1],
+  ['B02.100','Telephone / network coverage when needed.',2],
+ ]},
+ {id:'B03',zone:'switchgear',t:'Electrical area interface',items:[
+  ['B03.010','Storage, office or other uses do not interfere with the switchgear.',3,{p:'nok'}],
+  ['B03.020','Electrical panels not obstructed.',3,{p:'nok'}],
+  ['B03.030','Working clearances in front of electrical equipment kept.',3,{p:'nok'}],
+  ['B03.040','Emergency routes not blocked.',3,{p:'nok'}],
+  ['B03.050','No unsuitable materials near electrical equipment (combustibles, liquids, metal stock).',3,{p:'nok'}],
+  ['B03.060','No obstacles for operation and maintenance.',2],
+  ['B03.070','Administrative work does not place people unnecessarily close to electrical equipment.',3],
+ ]},
+ {id:'B04',zone:'storage',t:'Limited storage & material control',items:[
+  ['B04.010','Is the available storage appropriate for the minimum materials required at this remote location?',2,{sc:'ypn'}],
+  ['B04.020','Small spare parts and consumables organised and identified (item number).',2],
+  ['B04.030','PPE stored correctly and within date.',2],
+  ['B04.040','Special tools and LOTO equipment stored and complete.',3],
+  ['B04.050','Cleaning and spill materials available.',2],
+  ['B04.060','Oils / chemicals stored on retention (when present).',3],
+  ['B04.070','Temporary defective materials clearly identified and segregated until transfer to the warehouse.',3,{p:'nok'}],
+  ['B04.080','Shelves organised.',1],
+ ]},
+ {id:'B05',zone:'waste',t:'Waste & recycling points',items:[
+  ['B05.010','Recycling points (ecopoints) present, in number and type suited to the needs.',2,{sc:'area',p:'always',h:'Photograph the waste area.'}],
+  ['B05.020','Waste streams identified and containers labelled: used oils, filters, contaminated material, aerosols, batteries, electrical/electronic waste, scrap metal, plastics, cardboard, general waste.',3],
+  ['B05.030','No leaks; retention / bund where needed.',3,{p:'nok'}],
+  ['B05.040','Containers not overloaded; collection frequency adequate.',2,{p:'nok'}],
+  ['B05.050','Waste area clean, well located and accessible for collection.',2],
+ ]},
+ {id:'B06',zone:'remote',t:'Remote site readiness',items:[
+  ['B06.010','Communication / mobile coverage.',3],
+  ['B06.020','Emergency contact information displayed.',3],
+  ['B06.030','First-aid available.',3],
+  ['B06.040','Drinking water available (when applicable).',2],
+  ['B06.050','Sanitary conditions.',2],
+  ['B06.060','Heating / cooling.',1],
+  ['B06.070','Emergency lighting and external lighting working.',2],
+  ['B06.080','Access road and vehicle access in good condition.',2,{p:'nok'}],
+  ['B06.090','Site access control in place.',2],
+  ['B06.100','People can stay and work safely at the location for the expected duration (isolated work requirements met).',3],
+ ]},
+ {id:'B07',zone:'building',t:'Building condition',items:[
+  ['B07.010','Roof without damage; no water ingress or humidity.',3,{p:'nok'}],
+  ['B07.020','Walls, doors and windows in good condition.',2,{p:'nok'}],
+  ['B07.030','Floor in good condition.',2],
+  ['B07.040','Ventilation working.',2],
+  ['B07.050','General lighting.',2,{sc:'light'}],
+  ['B07.060','Electrical installations of the building in good condition (sockets, lighting circuits).',2],
+  ['B07.070','General cleanliness; no evidence of pests.',2,{p:'nok'}],
+  ['B07.080','External condition, drainage and vegetation controlled.',1,{p:'nok'}],
+ ]},
+ {id:'B08',zone:'safety',t:'Safety & emergency',items:[
+  ['B08.010','Fire extinguishers present and within inspection date.',3],
+  ['B08.020','Emergency exits and routes marked and unobstructed.',3],
+  ['B08.030','Safety signage and single-line diagram displayed.',2],
+  ['B08.040','Insulating mats, gloves and rescue equipment available and within date.',3],
+ ]},
+ {id:'B09',zone:'ci',t:'Continuous improvement',items:[
+  ['B09.010','Improvement opportunities identified (space, office, storage, waste).',1,{t:'info',h:'Describe each opportunity and raise an action when needed.'}],
+  ['B09.020','Previous assessment actions closed or in progress.',2],
+ ]},
+];
+const SS_W={B01:15,B02:15,B03:15,B04:10,B05:15,B06:10,B07:10,B08:5,B09:5};
+
+const COUNTRIES=['Portugal','Spain','France','Italy','United Kingdom','Germany','Belgium','Sweden','Norway','Finland','Other'];
+const lastCountry=()=>{try{return localStorage.getItem('wtq_country')||'Portugal'}catch(e){return 'Portugal'}};
+const countryField=()=>`<label class="field"><span>Country</span><select id="n-country" required>${COUNTRIES.map(c=>`<option ${c===lastCountry()?'selected':''}>${c}</option>`).join('')}</select></label>`;
+const TPL={
+ WTQCIA:{k:'WTQCIA',name:'Wind Turbine Quality & Continuous Improvement Assessment',short:'Quality & CI',tag:'WTQCIA',sections:WTQ_SECTIONS,
+  types:[
+   ['GE',['GE1.5','GE2.5','GE 3 MW']],
+   ['Ecotècnia / Alstom',['ECO 74','ECO 80','ECO 100']],
+   ['Acciona',['AW1500']],
+   ['Nordex',['Nordex N60','Nordex N80','Nordex N90']],
+   ['Vestas',['Vestas V52','Vestas V66','Vestas V80','Vestas V90 1.8/2.0 MW','Vestas V90 3 MW','Vestas V100','Vestas V110','Vestas V112','Vestas V117','Vestas V120','Vestas V126','Vestas V136']],
+   ['Gamesa',['Gamesa G52','Gamesa G8X','Gamesa G9X']],
+   ['Enercon',['Enercon E-40 – 500/600 kW','Enercon E-48 / E-53 – 800 kW','Enercon E-66 – 1.5 to 2 MW','Enercon E-70 E4 – 2.0/2.3 MW','Enercon E-82 – 2 or 3 MW','Enercon E-101 – 3.05/3.5 MW']],
+   ['Senvion / REpower',['REpower MD70 – 1.5 MW','REpower MD77 – 1.5 MW','REpower MM70 – 2 MW','Senvion MM82 / MM82B – 2.05 MW','Senvion MM92 – 2.05 MW','Senvion MM92 EVO – ~2 MW','Senvion MM100 – ~2 MW','Senvion 3.2M114 – 3.2 MW','Senvion 3.4M104 – 3.4 MW']],
+   ['Fuhrländer',['Fuhrländer FL 2.5']],
+   ['NEG Micon',['NEG Micon NM48']],
+   ['Bonus',['Bonus B44 – 600 kW','Bonus B54 – 1 MW','Bonus B62 – 1.3 MW','Bonus B76 – 2 MW','Bonus B82 – 2.3 MW']],
+   ['Other',['Other']]],
+  blurb:'Field quality walk-down for any turbine type: safety equipment, housekeeping, work quality after maintenance, environment and improvement ideas.'},
+ SVSC:{k:'SVSC',name:'Service Vehicle Safety & Condition Check',short:'Vehicle check',tag:'SVSC',sections:SVC_SECTIONS,vehicle:true,
+  blurb:'Monthly check of service vans and cars: documents, fluids, tyres, safety and first-aid equipment, PPE, tools, cargo area lighting and driver feedback.'},
+ WOQCIA:{k:'WOQCIA',name:'Warehouse Operational Quality & Continuous Improvement Assessment',short:'Warehouse',tag:'WOQCIA',sections:WH_SECTIONS,secW:WH_W,site:'warehouse',improve:true,
+  blurb:'Defined areas, racking, identification and traceability, material flows, tools and calibration, handling means, office, welfare, lighting and cleanliness.'},
+ SWQCIA:{k:'SWQCIA',name:'Substation Workplace Quality & Continuous Improvement Assessment',short:'Substation',tag:'SWQCIA',sections:SS_SECTIONS,secW:SS_W,site:'substation',improve:true,
+  blurb:'Remote substation: use of space, office and workstation (noise, lighting, desk, chair), electrical area interface, limited storage, waste points and site readiness.'},
+ LEA:{k:'LEA',name:'Lifetime Extension Assessment',short:'Lifetime extension',tag:'LEA',sections:LEA_SECTIONS,mk:true,doc:'lte',
+  types:['V80-1.8 MW','V80-2.0 MW','V90-1.8 MW','V90-2.0 MW'],
+  blurb:'Structural inspection for lifetime extension of Vestas V80 & V90 1.8/2.0 MW (Mk 1–5): foundation, tower, base frame, drivetrain, hub, pitch and blades.'}};
+const tplOf=a=>TPL[(a&&a.tpl)||'LEA']||TPL.LEA;
+const PRIOS=['Low','Medium','High','Critical'];
+const ITEM={};for(const T of Object.values(TPL)){T.items=[];T.sections.forEach(s=>s.items.forEach(a=>{const it={code:a[0],text:a[1],w:a[2],o:a[3]||{},sec:s,tpl:T.k};T.items.push(it);ITEM[it.code]=it}))}
+
+const S={ready:false,db:null,user:null,assets:null,dl:null,meId:null,me:null,isOwner:false,canEdit:false,canWrite:true,
+  localUrls:{},queue:{},syncing:false,offline:false,admins:[],docs:{},tfilter:'all',assess:[],actions:[],appr:{},names:{},avatars:{},loadedA:false,loadedX:false,slow:false,dbErr:null,
+  refs:{},openHow:{},filter:'all',q:'',xfilter:'active',uploads:{},pending:false};
+const $=s=>document.querySelector(s);
+const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,8);
+const today=()=>new Date().toISOString().slice(0,10);
+const fmtD=d=>d?new Date(d).toLocaleDateString(undefined,{day:'2-digit',month:'short',year:'numeric'}):'—';
+const fmtDT=d=>d?new Date(d).toLocaleString(undefined,{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}):'—';
+const FIELD=!!window.NQA_FIELD;
+const blob=id=>String(id).startsWith('data:')?id:String(id).startsWith('local:')?(S.localUrls[id]||''):(window.FIELD_URLS&&FIELD_URLS[id])?FIELD_URLS[id]:'/_blob/'+id;
+const ICON={
+ list:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 6h11M9 12h11M9 18h11"/><path d="M4 6h.01M4 12h.01M4 18h.01"/></svg>',
+ flag:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 21V4h11l-1.5 4L16 12H5"/></svg>',
+ gear:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>',
+ cam:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>',
+ plus:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>',
+ note:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 20h4L19 9l-4-4L4 16z"/></svg>',
+ back:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>',
+ doc:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4M9 12h6M9 16h6"/></svg>',
+ dl:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>',
+ chart:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>',
+ link:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M10 14a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1"/><path d="M14 10a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1"/></svg>',
+ check:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"/></svg>',
+};
+
+/* ---------- scoring ---------- */
+const optOf=(it,r)=>{const sc=it.o.sc&&SCALES[it.o.sc];return sc&&r&&r.o?sc.find(o=>o[0]===r.o):null};
+function ansVal(it,r){if(!r||!r.s||r.s==='na')return null;const o=optOf(it,r);if(o)return o[2];return r.s==='ok'?1:r.s==='nok'?0:r.s==='imp'?.5:r.s==='meas'?.33:null}
+function scoreOf(a){
+  const T=tplOf(a),ans=answersOf(a);let num=0,den=0,done=0,nok=0,crit=0,imp=0;const secs={};
+  for(const s of T.sections){let sn=0,sd=0,sdone=0,snok=0;
+    for(const a2 of s.items){const it=ITEM[a2[0]];const r=ans[it.code];
+      if(r&&r.s){sdone++;done++;if(r.s==='imp'||r.s==='meas')imp++}
+      const v=ansVal(it,r);if(v==null||it.o.t==='info')continue;
+      sd+=it.w;den+=it.w;sn+=it.w*v;num+=it.w*v;
+      if(r.s==='nok'){snok++;nok++;if(it.w===3)crit++}}
+    secs[s.id]={pct:sd?sn/sd*100:null,done:sdone,count:s.items.length,nok:snok};}
+  let pct=den?num/den*100:null;
+  if(T.secW){let n=0,d=0;for(const sec of T.sections){const x=secs[sec.id];if(x.pct!=null){n+=T.secW[sec.id]*x.pct;d+=T.secW[sec.id]}}pct=d?n/d:null}
+  return {pct,done,total:T.items.length,nok,crit,imp,secs,grade:gradeOf(pct,crit),T};
+}
+function gradeOf(p,crit){if(p==null)return{g:'x',t:'Not scored'};
+  let g=p>=90?'A':p>=75?'B':p>=50?'C':'D';if(crit>0&&(g==='A'||g==='B'))g='C';
+  return {g,t:{A:'Fit for extended operation',B:'Fit – minor actions',C:'Conditional – actions required',D:'Not fit – critical findings'}[g]};}
+const pctColor=p=>p==null?'var(--na-soft)':p>=90?'var(--sev1)':p>=75?'#5aa02c':p>=50?'var(--sev3)':'var(--sev4)';
+function zoneScore(sc,z){let n=0,d=0;for(const sec of sc.T.sections){if(sec.zone!==z)continue;const s=sc.secs[sec.id];if(s.pct!=null){n+=s.pct;d++}}return d?n/d:null}
+function ring(p,size=64,stroke=7){const r=(size-stroke)/2,c=2*Math.PI*r,v=p==null?0:p/100;
+  return `<svg viewBox="0 0 ${size} ${size}" aria-hidden="true"><circle cx="${size/2}" cy="${size/2}" r="${r}" fill="none" stroke="var(--na-soft)" stroke-width="${stroke}"/><circle cx="${size/2}" cy="${size/2}" r="${r}" fill="none" stroke="${pctColor(p)}" stroke-width="${stroke}" stroke-linecap="round" stroke-dasharray="${c*v} ${c}"/></svg>`;}
+
+/* ---------- action state ---------- */
+const needAppr=()=>Math.min(2,Math.max(1,S.admins.length));
+function actState(x){
+  if(!x.evidence||x.status==='open')return {k:'open',t:x.returnNote?'Returned':'Open'};
+  const ev=x.evidence.at;let ap=0,rj=0;const per={};
+  for(const id of S.admins){const d=(S.appr[id]||{})[x.id];if(d&&d.ev===ev){per[id]=d;if(d.decision==='approve')ap++;else rj++;}}
+  const need=needAppr();
+  if(S.admins.length&&ap>=need)return {k:'closed',t:'Closed',per};
+  return {k:'review',t:`Validation ${ap}/${need}`,per};
+}
+const isOverdue=x=>x.due&&actState(x).k!=='closed'&&x.due<today();
+
+/* ---------- people ---------- */
+let nameTimer=null;
+function want(ids){const miss=[...new Set(ids.filter(i=>i&&!(i in S.names)&&(FIELD||!/^(local_|p_)/.test(i))))];if(!miss.length||!S.user)return;
+  miss.forEach(i=>S.names[i]='');
+  S.user.profiles(miss).then(ps=>{for(const i of miss){S.names[i]=ps[i]?.name||'';S.avatars[i]=ps[i]?.avatarUrl||''}
+    clearTimeout(nameTimer);nameTimer=setTimeout(()=>render(),60)});}
+const nm=id=>id?(S.names[id]||(id===S.meId?'You':'Someone')):'—';
+const av=id=>S.avatars[id]?`<img alt="" src="${esc(S.avatars[id])}">`:'';
+
+/* ---------- offline queue: answers are saved on the phone first, then synced ---------- */
+const Q={load(){try{S.queue=JSON.parse(localStorage.getItem('wtq_queue_v1')||'{}')||{}}catch(e){S.queue={}}},save(){try{localStorage.setItem('wtq_queue_v1',JSON.stringify(S.queue))}catch(e){}}};
+const LP={mem:{},_db:null,open(){if(this._db)return this._db;this._db=new Promise((res,rej)=>{try{const r=indexedDB.open('wtq_photos',1);r.onupgradeneeded=()=>r.result.createObjectStore('ph');r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)}catch(e){rej(e)}});return this._db},
+ async put(k,b){this.mem[k]=b;S.localUrls[k]=URL.createObjectURL(b);try{const d=await this.open();await new Promise((res,rej)=>{const t=d.transaction('ph','readwrite');t.objectStore('ph').put(b,k);t.oncomplete=res;t.onerror=()=>rej(t.error)})}catch(e){}},
+ async get(k){if(this.mem[k])return this.mem[k];try{const d=await this.open();return await new Promise((res,rej)=>{const r=d.transaction('ph').objectStore('ph').get(k);r.onsuccess=()=>res(r.result||null);r.onerror=()=>rej(r.error)})}catch(e){return null}},
+ async del(k){delete this.mem[k];try{const d=await this.open();d.transaction('ph','readwrite').objectStore('ph').delete(k)}catch(e){}}};
+function answersOf(a){const ans={...(a.answers||{})};for(const k in S.queue){const q=S.queue[k];if(q.aid===a.id)ans[q.code]=q.val}return ans}
+const pendingCount=aid=>Object.values(S.queue).filter(q=>!aid||q.aid===aid).length;
+const withTimeout=(p,ms)=>Promise.race([p,new Promise((_,rej)=>setTimeout(()=>rej({code:'timeout'}),ms))]);
+async function restoreLocal(){for(const q of Object.values(S.queue))for(const p of (q.val.photos||[]))if(String(p).startsWith('local:')&&!S.localUrls[p]){const b=await LP.get(p);if(b)S.localUrls[p]=URL.createObjectURL(b)}soft()}
+async function flush(){
+  if(S.syncing||!S.db)return;const keys=Object.keys(S.queue);if(!keys.length){if(S.offline){S.offline=false;soft()}return}
+  S.syncing=true;
+  try{for(const k of keys){const q=S.queue[k];if(!q)continue;const t=q.t;let val={...q.val};
+      if((val.photos||[]).some(p=>String(p).startsWith('local:'))){if(!S.assets)throw {code:'no_assets'};const out=[];
+        for(const p of val.photos){if(!String(p).startsWith('local:')){out.push(p);continue}const b=await LP.get(p);if(!b)continue;
+          const r=await withTimeout(S.assets.upload(b,{type:'image/jpeg'}),60000);out.push(r.id);S.localUrls[r.id]=S.localUrls[p];LP.del(p)}
+        val={...val,photos:out};if(S.queue[k]&&S.queue[k].t===t){S.queue[k].val=val;Q.save()}}
+      const a=S.assess.find(x=>x.id===q.aid);
+      await withTimeout(S.db.doc('assessments/'+q.aid).update({answers:{[q.code]:val},updatedAt:new Date().toISOString(),score:a?scoreOf(a).pct:null}),15000);
+      if(S.queue[k]&&S.queue[k].t===t){delete S.queue[k];Q.save()}}
+    S.offline=false;
+  }catch(e){S.offline=true;if(e&&e.code==='invalid_argument'){toast(dbMsg(e))}}
+  finally{S.syncing=false;soft()}
+  if(Object.keys(S.queue).length)setTimeout(flush,S.offline?20000:500);
+}
+window.addEventListener('online',()=>flush());
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)flush()});
+function syncPill(aid){const n=pendingCount(aid);
+  if(!n)return `<span class="pill ok" title="All answers are saved on the server">${ICON.check.replace('<svg','<svg width="12" height="12"')} Saved</span>`;
+  return `<span class="pill warn" title="Saved on this device; they upload automatically when the network is back. Keep this page open.">${S.offline?'Offline · ':'Syncing · '}${n} waiting</span>`}
+/* ---------- boot ---------- */
+async function boot(){
+  document.body.insertAdjacentHTML('beforeend','<input type="file" id="gphoto" accept="image/*" multiple hidden>');
+  Q.load();render();restoreLocal();
+  if(!window.claude||!window.claude.use){S.dbErr='offline';render();return}
+  const slow=setTimeout(()=>{S.slow=true;render()},10000);
+  const [db,user,assets,dl]=await Promise.all(['db','user','assets','downloads'].map(n=>claude.use(n).catch(()=>null)));
+  Object.assign(S,{db,user,assets,dl});
+  if(user){const me=await user.me();S.me=me;S.meId=me.id;S.isOwner=me.isOwner;S.canEdit=me.canEdit;
+    if(me.id){S.names[me.id]=me.name||'';S.avatars[me.id]=me.avatarUrl}
+    const cw=await user.can('data.write');S.canWrite=cw!==false;}
+  if(!db){clearTimeout(slow);S.dbErr='nodb';S.ready=true;render();return}
+  S.ready=true;
+  db.collection('assessments').orderBy('createdAt','desc').limit(500).onSnapshot(sn=>{S.assess=sn.docs.map(d=>({id:d.id,...d.data()}));for(const a of S.assess)for(const [i,n] of Object.entries(a.fieldNames||{}))if(!S.names[i])S.names[i]=n;if(!sn.metadata.fromCache){S.loadedA=true;clearTimeout(slow);S.slow=false}soft()},e=>{S.dbErr=e.code;clearTimeout(slow);render()});
+  db.collection('actions').orderBy('createdAt','desc').limit(1000).onSnapshot(sn=>{S.actions=sn.docs.map(d=>({id:d.id,...d.data()}));if(!sn.metadata.fromCache)S.loadedX=true;soft()},e=>{S.dbErr=e.code;render()});
+  db.collection('docs').onSnapshot(sn=>{const m={};sn.docs.forEach(d=>m[d.id]={id:d.id,...d.data()});S.docs=m;soft()},()=>{});
+  db.doc('refs/items').onSnapshot(d=>{S.refs=(d.exists&&d.data().map)||{};soft()},()=>{});
+  let subs=[];
+  db.doc('config/admins').onSnapshot(d=>{const ids=(d.exists&&d.data().ids)||[];S.admins=ids.slice(0,3);
+    subs.forEach(u=>u());subs=S.admins.map(id=>db.collection('approvals/'+id+'/items').onSnapshot(sn=>{const m={};sn.docs.forEach(x=>m[x.id]=x.data());S.appr[id]=m;soft()},()=>{}));soft()},()=>{});
+  render();setTimeout(flush,1500);
+  if(FIELD&&!window.NQA_myName())setTimeout(sheetName,300);
+}
+/* re-render without stealing focus from a field being typed in */
+function soft(){const a=document.activeElement;if(a&&a.closest&&a.closest('#main,#overlay')&&/INPUT|TEXTAREA|SELECT/.test(a.tagName)){S.pending=true;return}render()}
+document.addEventListener('focusout',()=>setTimeout(()=>{if(S.pending){const a=document.activeElement;if(!(a&&/INPUT|TEXTAREA|SELECT/.test(a.tagName))){S.pending=false;render()}}},50));
+
+/* ---------- routing ---------- */
+const route=()=>{const h=(location.hash||'').slice(1);return h||'home'};
+window.addEventListener('hashchange',()=>{closeSheet();render();window.scrollTo(0,0)});
+const go=h=>{if(location.hash.slice(1)===h){render()}else location.hash=h};
+
+/* ---------- shell ---------- */
+function shell(){
+  const r=route();const area=r.startsWith('act')?'actions':r==='settings'?'settings':(r==='library'||r.startsWith('doc-'))?'library':'home';
+  const pend=S.actions.filter(x=>actState(x).k==='review'&&S.admins.includes(S.meId)&&!((S.appr[S.meId]||{})[x.id]&&S.appr[S.meId][x.id].ev===x.evidence.at)).length;
+  const open=S.actions.filter(x=>actState(x).k!=='closed').length;
+  const tabs=[['home','Assessments',ICON.list,0],['actions','Actions',ICON.flag,pend||0],['library','SWI',ICON.doc,0],['settings','Settings',ICON.gear,0]];
+  $('#tabs').innerHTML=tabs.map(([k,t,i,b])=>`<button class="tab" data-go="${k}" ${area===k?'aria-current="page"':''}>${t}${b?`<span class="badge" title="Awaiting your validation">${b}</span>`:''}</button>`).join('');
+  $('#bnav').innerHTML=tabs.map(([k,t,i,b])=>`<button data-go="${k}" ${area===k?'aria-current="page"':''}>${i}<span>${t}</span>${b?`<span class="badge">${b}</span>`:''}</button>`).join('');
+  if(FIELD&&!$('#fieldtag')){const b=document.querySelector('.brand span');if(b)b.innerHTML='<b id="fieldtag" style="background:#fff;color:#720062;border-radius:4px;padding:2px 6px;font:700 11px var(--f-head);letter-spacing:.06em">FIELD</b> works offline'}
+  $('#me').innerHTML=S.me&&S.me.id?`<img alt="" src="${esc(S.me.avatarUrl)}" title="${esc(S.me.name||'You')}">`:'';
+}
+function render(){
+  shell();const r=route();let html='';
+  try{
+    if(r==='home')html=vHome();
+    else if(r==='actions')html=vActions();
+    else if(r==='settings')html=vSettings();
+    else if(r==='library')html=vLibrary();
+    else if(r.startsWith('doc-'))html=vDoc(r.slice(4));
+    else if(r.startsWith('a-'))html=vExec(r.slice(2));
+    else if(r.startsWith('r-'))html=vReport(r.slice(2));
+    else if(r.startsWith('act-')){html=vActions();setTimeout(()=>openAction(r.slice(4)),0)}
+    else html=vHome();
+  }catch(e){console.error(e);html=`<div class="card pad">Something went wrong while drawing this view. Reload the page.</div>`}
+  $('#main').innerHTML=html;
+  if(r==='settings'&&S.isOwner&&$('#pk-adm'))bindPicker('adm',pickers.adm,3);
+}
+function notices(){
+  if(pendingCount())return `<div class="notice">${pendingCount()} answer${pendingCount()>1?'s':''} saved on this device waiting to upload. They sync automatically when the network is back.</div>`+notices2();
+  return notices2();
+}
+function notices2(){
+  if(S.dbErr==='offline')return `<div class="notice">Open this page inside Claude to load and save assessments.</div>`;
+  if(S.dbErr==='nodb')return `<div class="notice">Sign in to Claude to see and record assessments.</div>`;
+  if(S.dbErr)return `<div class="notice">The assessment database stopped answering (${esc(S.dbErr)}). Reload the page to reconnect.</div>`;
+  if(S.slow&&!S.loadedA)return `<div class="notice">The database can't be reached yet. Data shown may be incomplete.</div>`;
+  if(S.ready&&!S.canWrite)return `<div class="notice">You have view-only access: you can read reports but not record inspections.</div>`;
+  return '';
+}
+
+/* ---------- home ---------- */
+function vHome(){
+  const all=S.assess.map(a=>({...a,sc:scoreOf(a)}));
+  const comp=all.filter(a=>a.status==='completed');
+  const avg=comp.length?comp.reduce((s,a)=>s+(a.sc.pct||0),0)/comp.length:null;
+  const openX=S.actions.filter(x=>actState(x).k==='open').length, revX=S.actions.filter(x=>actState(x).k==='review').length, overdue=S.actions.filter(isOverdue).length;
+  want(all.flatMap(a=>a.inspectors||[]));
+  let list=all.filter(a=>(S.filter==='all'||(S.filter==='done'?a.status==='completed':a.status!=='completed'))&&(S.tfilter==='all'||tplOf(a).k===S.tfilter));
+  if(S.q){const q=S.q.toLowerCase();list=list.filter(a=>[a.wf,a.wtg,a.type,a.country].join(' ').toLowerCase().includes(q))}
+  const canNew=S.ready&&S.db&&S.canWrite;
+  return `${notices()}
+  <div class="pagehead"><div><div class="eyebrow">Nadara · turbines · warehouses · substations · vehicles</div><h1>Quality assessments</h1></div>
+   <div class="row" style="gap:8px">${!FIELD&&S.assets?`<label class="btn" for="impfile">${ICON.dl}Import field file</label><input id="impfile" type="file" accept=".json,application/json" hidden>`:''}<button class="btn primary hide-m" data-new ${canNew?'':'disabled'}>${ICON.plus}New assessment</button></div></div>
+  ${FIELD?`<div class="notice" style="background:var(--nad-soft);color:var(--nad)">Field app: inspections are saved on this phone, with or without network. When you have network, open the report and tap <b>Send to online app</b>, then import the file in the online app.${S.assess.filter(x=>!x.exportedAt).length?` <b>${S.assess.filter(x=>!x.exportedAt).length} not sent yet.</b>`:''}</div>`:''}
+  <div class="kpis">
+   <div class="card kpi"><div class="eyebrow">Assessments</div><div class="v">${all.length}</div><div class="s">${comp.length} completed · ${all.length-comp.length} in progress</div></div>
+   <div class="card kpi"><div class="eyebrow">Fleet score</div><div class="v" style="color:${pctColor(avg)}">${avg==null?'—':Math.round(avg)+'%'}</div><div class="s">average of completed assessments</div></div>
+   <div class="card kpi"><div class="eyebrow">Open actions</div><div class="v">${openX}</div><div class="s">${overdue?`<span style="color:var(--nok)">${overdue} overdue</span>`:'none overdue'}</div></div>
+   <div class="card kpi"><div class="eyebrow">Awaiting validation</div><div class="v">${revX}</div><div class="s">${S.admins.length?`${needAppr()} validator approval${needAppr()>1?'s':''} close each action`:'no validators assigned yet'}</div></div>
+  </div>
+  <div class="grid2">
+   <section class="stack" style="min-width:0">
+    <div class="row"><input class="search" id="q" type="search" placeholder="Search wind farm, turbine or type" value="${esc(S.q)}" aria-label="Search assessments">
+     <div class="chips">${[['all','All'],['open','In progress'],['done','Completed']].map(([k,t])=>`<button class="chip" data-filter="${k}" aria-pressed="${S.filter===k}">${t}</button>`).join('')}</div></div>
+    <div class="chips">${[['all','All types'],['WTQCIA','WTQCIA · Quality & CI'],['LEA','LEA · Lifetime extension'],['SVSC','SVSC · Service vehicles'],['WOQCIA','WOQCIA · Warehouse'],['SWQCIA','SWQCIA · Substation']].map(([k,t])=>`<button class="chip" data-tfilter="${k}" aria-pressed="${S.tfilter===k}">${t}</button>`).join('')}</div>
+    <div class="list">${list.length?list.map(aCard).join(''):emptyAssess(all.length)}</div>
+   </section>
+   <aside class="stack" style="min-width:0">
+    <div class="card pad"><div class="row spread"><h2 style="font-size:17px">Fleet condition</h2><span class="eyebrow">score per turbine</span></div>${fleetChart(comp)}</div>
+    <div class="card pad"><div class="row spread"><h2 style="font-size:17px">Actions needing attention</h2><button class="btn sm ghost" data-go="actions">All actions</button></div>
+     <div class="list" style="margin-top:10px">${S.actions.filter(x=>actState(x).k!=='closed').slice(0,5).map(xCard).join('')||'<p class="muted" style="margin:6px 0 0">No open actions. Actions you raise from nOK findings appear here.</p>'}</div></div>
+   </aside>
+  </div>
+  <button class="btn primary fab" data-new ${canNew?'':'disabled'}>${ICON.plus}New</button>`;
+}
+function emptyAssess(n){
+  if(!S.loadedA&&!S.dbErr)return `<div class="card empty"><p class="muted">Loading assessments…</p></div>`;
+  if(n)return `<div class="card empty"><p class="muted">No assessment matches this filter.</p></div>`;
+  return `<div class="card empty"><h2>No assessments yet</h2><p class="muted">Start a WTQCIA quality walk-down (${TPL.WTQCIA.items.length} control points, any turbine type) or a LEA lifetime extension inspection (${TPL.LEA.items.length} control points, Vestas V80/V90), with photos at every point.</p><button class="btn primary" data-new ${S.canWrite&&S.db?'':'disabled'}>${ICON.plus}New assessment</button></div>`;
+}
+function aCard(a){
+  const sc=a.sc,pr=Math.round(sc.done/sc.total*100);
+  return `<button class="acard" data-go="${a.status==='completed'?'r-':'a-'}${a.id}">
+   <div class="ring">${ring(sc.pct)}<b>${sc.pct==null?'–':Math.round(sc.pct)}</b></div>
+   <div style="min-width:0"><h3>${esc(a.wtg||'Turbine')} <span class="muted" style="font-weight:500;font-size:15px">· ${esc(a.wf||'')}</span></h3>
+    <div class="meta"><span class="tplb tpl-${tplOf(a).k}">${tplOf(a).tag}</span>${a.country?`<span>${esc(a.country)}</span>`:''}<span>${esc(a.type||'')} ${esc(a.mk||'')}</span><span>${fmtD(a.date)}</span><span>${(a.inspectors||[]).map(nm).map(esc).join(', ')}</span></div>
+    ${a.status==='completed'?'':`<div class="pbar" title="${pr}% of control points answered"><i style="width:${pr}%"></i></div>`}</div>
+   <div class="stack" style="align-items:flex-end;gap:6px">${a.status==='completed'?`<span class="grade g-${sc.grade.g}" title="${esc(sc.grade.t)}">${sc.grade.g}</span>`:`<span class="pill nad">${pr}%</span>`}
+    ${sc.nok?`<span class="pill nok">${sc.nok} nOK</span>`:''}</div></button>`;
+}
+function fleetChart(list){
+  if(!list.length)return `<p class="muted" style="margin:10px 0 0">Completed assessments are charted here, one bar per turbine, coloured by grade.</p>`;
+  const L=list.slice(0,14).reverse(),W=Math.max(300,L.length*40+40),H=180,bw=22;
+  const y=p=>H-24-(p/100)*(H-44);
+  let g='';[0,50,75,90,100].forEach(v=>{g+=`<line x1="30" x2="${W}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)" ${v?'stroke-dasharray="3 4"':''}/><text x="24" y="${y(v)+4}" text-anchor="end">${v}</text>`});
+  L.forEach((a,i)=>{const x=40+i*40,p=a.sc.pct||0;g+=`<rect x="${x}" y="${y(p)}" width="${bw}" height="${H-24-y(p)}" rx="3" fill="${pctColor(p)}"><title>${esc(a.wtg)} · ${Math.round(p)}%</title></rect><text x="${x+bw/2}" y="${H-8}" text-anchor="middle">${esc((a.wtg||'').slice(0,6))}</text>`});
+  return `<div class="chartwrap"><svg class="chart" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="img" aria-label="Score per turbine">${g}</svg></div>`;
+}
+
+/* ---------- new assessment ---------- */
+function sheetNew(tk){
+  if(!S.canWrite||!S.db)return;
+  const insp=S.meId?[S.meId]:[];
+  if(!tk){openSheet(`<h2>New assessment</h2><p class="muted" style="margin-top:-6px">Choose the assessment type.</p>
+   <div class="stack">${['WTQCIA','WOQCIA','SWQCIA','SVSC','LEA'].map(k=>{const T=TPL[k];return `<button class="tpick tpl-${k}" data-newtpl="${k}"><span class="row spread"><b>${esc(T.name)}</b><span class="tplb tpl-${k}">${T.tag}</span></span><span class="muted">${esc(T.blurb)}</span><span class="mono muted" style="font-size:12px">${T.items.length} control points · ${T.sections.length} sections${k==='WTQCIA'?' · most used in the field':''}</span></button>`}).join('')}</div>
+   <div class="row" style="justify-content:flex-end;margin-top:12px"><button type="button" class="btn" data-close>Cancel</button></div>`);return}
+  const T=TPL[tk];
+  if(T.site){const W=T.site==='warehouse';openSheet(`<div class="row spread"><h2 style="margin:0">${esc(T.name)}</h2><span class="tplb tpl-${tk}">${T.tag}</span></div>
+   <form id="fnew" style="margin-top:12px"><div class="fgrid">
+     <label class="field"><span>${W?'Warehouse':'Substation'}</span><input id="n-wtg" required placeholder="${W?'e.g. Central warehouse':'e.g. SE Candeeiros'}"></label>
+     <label class="field"><span>${W?'Location':'Wind farm'}</span><input id="n-wf" required></label>
+     <label class="field"><span>Inspection date</span><input id="n-date" type="date" value="${today()}" required></label>
+     <label class="field"><span>Floor area (m²)</span><input id="n-area" inputmode="numeric" placeholder="optional"></label>
+     ${W?`<label class="field"><span>Usual occupancy (people)</span><input id="n-occ" inputmode="numeric" placeholder="optional"></label>`:`<label class="field"><span>Manned</span><select id="n-occ"><option>Occasionally</option><option>Daily</option><option>Unmanned</option></select></label>`}</div>
+    ${countryField()}
+    <div class="field"><span>Inspected by</span>${peoplePicker('n-insp',insp)}</div>
+    <div class="row" style="justify-content:flex-end;margin-top:8px"><button type="button" class="btn" data-close>Cancel</button><button class="btn primary">Start assessment</button></div></form>`);
+   bindPicker('n-insp',insp);
+   $('#fnew').onsubmit=async e=>{e.preventDefault();const id=uid();const b=e.submitter;if(b)b.disabled=true;
+    const d={tpl:tk,wf:$('#n-wf').value.trim(),wtg:$('#n-wtg').value.trim(),type:W?'Warehouse':'Substation',mk:'',date:$('#n-date').value,area:$('#n-area').value.trim(),occ:$('#n-occ').value.trim(),
+      country:$('#n-country').value,countryOk:false,inspectors:[...pickers['n-insp']],status:'in_progress',answers:{},createdBy:S.meId,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()};
+    try{localStorage.setItem('wtq_country',d.country)}catch(e){}
+    try{await S.db.doc('assessments/'+id).set(d);closeSheet();go('a-'+id)}catch(err){if(b)b.disabled=false;toast(dbMsg(err))}};return}
+  if(T.vehicle){openSheet(`<div class="row spread"><h2 style="margin:0">${esc(T.name)}</h2><span class="tplb tpl-${tk}">${T.tag}</span></div>
+   <form id="fnew" style="margin-top:12px"><div class="fgrid">
+     <label class="field"><span>Licence plate</span><input id="n-wtg" required placeholder="e.g. AA-00-AA" style="text-transform:uppercase"></label>
+     <label class="field"><span>Odometer (km)</span><input id="n-hours" inputmode="numeric" required></label>
+     <label class="field"><span>Vehicle make / model</span><input id="n-type" placeholder="e.g. van, pick-up"></label>
+     <label class="field"><span>Wind farm / base</span><input id="n-wf" required></label>
+     <label class="field"><span>Inspection date</span><input id="n-date" type="date" value="${today()}" required></label></div>
+    <div class="field"><span>Vehicle responsible(s)</span>${peoplePicker('n-resp',[])}</div>
+    ${countryField()}
+    <div class="field"><span>Inspected by</span>${peoplePicker('n-insp',insp)}</div>
+    <div class="row" style="justify-content:flex-end;margin-top:8px"><button type="button" class="btn" data-close>Cancel</button><button class="btn primary">Start check</button></div></form>`);
+   bindPicker('n-resp',[]);bindPicker('n-insp',insp);
+   $('#fnew').onsubmit=async e=>{e.preventDefault();const id=uid();const b=e.submitter;if(b)b.disabled=true;
+    const d={tpl:tk,wf:$('#n-wf').value.trim(),wtg:$('#n-wtg').value.trim().toUpperCase(),type:$('#n-type').value.trim(),mk:'',date:$('#n-date').value,hours:$('#n-hours').value.trim(),
+      resp:[...pickers['n-resp']],country:$('#n-country').value,countryOk:false,inspectors:[...pickers['n-insp']],status:'in_progress',answers:{},createdBy:S.meId,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()};
+    try{localStorage.setItem('wtq_country',d.country)}catch(e){}
+    try{await S.db.doc('assessments/'+id).set(d);closeSheet();go('a-'+id)}catch(err){if(b)b.disabled=false;toast(dbMsg(err))}};return}
+  openSheet(`<div class="row spread"><h2 style="margin:0">${esc(T.name)}</h2><span class="tplb tpl-${tk}">${T.tag}</span></div>
+   <form id="fnew" style="margin-top:12px">
+    <div class="fgrid">
+     <label class="field"><span>Wind farm</span><input id="n-wf" required placeholder="e.g. Serra do Alvão"></label>
+     <label class="field"><span>Turbine (WTG)</span><input id="n-wtg" required placeholder="e.g. WTG 07"></label>
+     <label class="field"><span>Turbine type</span><select id="n-type">${Array.isArray(T.types[0])?T.types.map(([g,ms])=>`<optgroup label="${esc(g)}">${ms.map(t=>`<option>${esc(t)}</option>`).join('')}</optgroup>`).join(''):T.types.map(t=>`<option>${esc(t)}</option>`).join('')}</select></label>
+     ${T.mk?`<label class="field"><span>Mk version</span><select id="n-mk">${[1,2,3,4,5].map(m=>`<option>Mk ${m}</option>`).join('')}</select></label>`:`<label class="field"><span>Reason</span><select id="n-reason"><option>Routine quality walk-down</option><option>After preventive maintenance</option><option>After corrective maintenance</option><option>Audit / follow-up</option></select></label>`}
+     <label class="field"><span>Inspection date</span><input id="n-date" type="date" value="${today()}" required></label>
+     <label class="field"><span>Operating hours (h)</span><input id="n-hours" inputmode="numeric" placeholder="optional"></label>
+    </div>
+    <label class="field"><span>Transformer location</span><select id="n-trafo" required><option value="">Select…</option>${Object.entries(TRAFO).map(([k,v])=>`<option value="${k}">${v}</option>`).join('')}</select></label>
+    ${countryField()}
+    <div class="field"><span>Inspectors</span>${peoplePicker('n-insp',insp)}</div>
+    <div class="row" style="justify-content:flex-end;margin-top:8px"><button type="button" class="btn" data-close>Cancel</button><button class="btn primary">Start inspection</button></div>
+   </form>`);
+  bindPicker('n-insp',insp);
+  const setTr=()=>{const d=trafoDefault($('#n-type').value);if(d)$('#n-trafo').value=d};setTr();$('#n-type').onchange=setTr;
+  $('#fnew').onsubmit=async e=>{e.preventDefault();const id=uid();const b=e.submitter;if(b)b.disabled=true;
+    const d={tpl:tk,wf:$('#n-wf').value.trim(),wtg:$('#n-wtg').value.trim(),type:$('#n-type').value,mk:T.mk?$('#n-mk').value:'',reason:T.mk?'':$('#n-reason').value,trafo:$('#n-trafo').value,date:$('#n-date').value,hours:$('#n-hours').value.trim(),
+      country:$('#n-country').value,countryOk:false,inspectors:[...pickers['n-insp']],status:'in_progress',answers:{},createdBy:S.meId,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()};
+    try{localStorage.setItem('wtq_country',d.country)}catch(e){}
+    try{await S.db.doc('assessments/'+id).set(d);closeSheet();go('a-'+id)}catch(err){if(b)b.disabled=false;toast(dbMsg(err))}};
+}
+const pickers={};
+function peoplePicker(key,ids){pickers[key]=[...ids];return `<div class="picker" id="pk-${key}"><div class="people" id="pp-${key}"></div><input class="search" style="margin-top:6px;border-radius:8px;width:100%" placeholder="Add a person by name" id="pi-${key}" autocomplete="off"><div class="res" id="pr-${key}" hidden></div></div>`}
+function bindPicker(key,ids,max=99){
+  const draw=()=>{if(!$('#pp-'+key))return;want(pickers[key]);$('#pp-'+key).innerHTML=pickers[key].map(i=>`<span class="person">${av(i)}${esc(nm(i))}<button type="button" data-rm="${esc(i)}" aria-label="Remove">×</button></span>`).join('')||'<span class="muted" style="font-size:13px">Nobody selected</span>';
+    $('#pp-'+key).querySelectorAll('[data-rm]').forEach(b=>b.onclick=()=>{pickers[key]=pickers[key].filter(x=>x!==b.dataset.rm);if(key==='adm')S.admDirty=true;draw()})};
+  draw();setTimeout(draw,600);
+  const inp=$('#pi-'+key),res=$('#pr-'+key);
+  const search=async()=>{if(!S.user){res.hidden=true;return}const hits=await S.user.search(inp.value);
+    const h=hits.filter(p=>!pickers[key].includes(p.id));if(!h.length){res.hidden=true;return}
+    res.innerHTML=h.map(p=>`<button type="button" data-pid="${esc(p.id)}"><img alt="" src="${esc(p.avatarUrl)}"><span></span></button>`).join('');
+    res.querySelectorAll('button').forEach((b,i)=>{b.querySelector('span').textContent=h[i].name;b.onmousedown=ev=>{ev.preventDefault();if(pickers[key].length>=max){toast(`Pick at most ${max}`);return}
+      S.names[h[i].id]=h[i].name;S.avatars[h[i].id]=h[i].avatarUrl;pickers[key].push(h[i].id);if(key==='adm')S.admDirty=true;inp.value='';res.hidden=true;draw()}});res.hidden=false};
+  inp.onfocus=search;inp.oninput=search;inp.onblur=()=>setTimeout(()=>res.hidden=true,150);
+}
+
+/* ---------- execution ---------- */
+function vExec(id){
+  const a=S.assess.find(x=>x.id===id);
+  if(!a)return S.loadedA?`<div class="card empty"><h2>Assessment not found</h2><p class="muted">It may have been deleted.</p><button class="btn" data-go="home">Back to assessments</button></div>`:`<div class="card empty"><p class="muted">Loading assessment…</p></div>`;
+  const sc=scoreOf(a),T=sc.T,ans=answersOf(a),locked=a.status==='completed'||!S.canWrite;
+  want(a.inspectors||[]);const doc=T.doc&&S.docs[T.doc];
+  const pr=Math.round(sc.done/sc.total*100);
+  return `${notices()}<div class="exechead">
+   <div class="row spread" style="gap:8px"><div class="row" style="gap:8px;min-width:0"><button class="btn sm ghost" data-go="home" aria-label="Back">${ICON.back}</button>
+     <div style="min-width:0"><div class="eyebrow"><span class="tplb tpl-${T.k}">${T.tag}</span> ${esc(a.wf)} · ${esc(a.type)} ${esc(a.mk||'')}</div><h1 style="font-size:22px">${esc(a.wtg)}</h1></div></div>
+    <div class="row" style="gap:10px"><div class="ring" style="width:48px;height:48px">${ring(sc.pct,48,6)}<b style="font-size:13px">${sc.pct==null?'–':Math.round(sc.pct)}</b></div>
+     ${syncPill(a.id)}<div class="hide-m"><div class="mono" style="font-size:13px">${sc.done}/${sc.total} answered</div><div class="muted" style="font-size:12px">${sc.nok} nOK · ${pr}%</div></div>
+     ${doc?`<button class="btn sm" data-go="doc-${doc.id}">${ICON.doc}SWI</button>`:''}<button class="btn sm" data-go="r-${a.id}">${ICON.chart}<span class="hide-m">Report</span></button></div></div>
+   <div class="pbar" style="margin:8px 0"><i style="width:${pr}%"></i></div>
+   <nav class="secnav" aria-label="Sections">${T.sections.map(s=>{const x=sc.secs[s.id];return `<button data-jump="${s.id}" class="${x.done===x.count?'done':''} ${x.nok?'has-nok':''}"><span class="dot"></span>${s.id.slice(1)} ${esc(s.t.split(' ')[0])}</button>`}).join('')}</nav>
+  </div>
+  ${S.offline&&pendingCount(a.id)?`<div class="notice" style="margin-top:10px">No network. Your answers and photos are kept on this device and upload by themselves when the network is back. Keep this page open (you can lock the phone).</div>`:''}
+  ${locked&&a.status==='completed'?`<div class="lockbar">${ICON.check} Completed ${fmtDT(a.completedAt)} by ${esc(nm(a.completedBy))}. Answers are locked.${S.canEdit||S.admins.includes(S.meId)?` <button class="btn sm" data-reopen="${a.id}">Reopen</button>`:''}</div>`:''}
+  ${countryCard(a,locked)}
+  ${T.sections.map(s=>`<section class="section" id="sec-${s.id}"><header><span class="mono">${s.id}</span><h2>${esc(s.t)}</h2><span class="muted" style="margin-left:auto;font-size:13px">${sc.secs[s.id].done}/${s.items.length}</span></header>
+    ${s.items.map(x=>itemCard(a,ITEM[x[0]],ans[x[0]]||{},locked)).join('')}</section>`).join('')}
+  ${actionsBox(a)}
+  ${locked?'':finishBox(a,sc)}`;
+}
+function missingOf(a){const ans=answersOf(a),m=[];if(!a.countryOk)m.push(['Country','not answered']);for(const it of tplOf(a).items){const r=ans[it.code]||{};
+  if(!r.s){m.push([it.code,'not answered']);continue}
+  const ph=(r.photos||[]).length;if(r.s!=='na'&&(it.o.p==='always'||(it.o.p==='nok'&&r.s==='nok'))&&!ph)m.push([it.code,'photo missing']);
+  if(it.o.m&&r.s==='ok'&&it.o.m.max!=null&&!(r.v&&r.v[0]!==''&&r.v[0]!=null))m.push([it.code,'value missing'])}return m}
+function finishBox(a,sc){const miss=missingOf(a),open=miss.filter(m=>m[1]==='not answered'),soft2=miss.filter(m=>m[1]!=='not answered');
+  const lst=l=>l.slice(0,6).map(m=>`<a href="#a-${a.id}" data-jumpitem="${m[0]}">${m[0]}</a>${m[1]==='not answered'?'':' ('+m[1]+')'}`).join(', ')+(l.length>6?'…':'');
+  return `<div class="card finish"><div class="row spread"><div style="min-width:0"><h2 style="font-size:19px">Complete the assessment</h2>
+   <p class="muted" style="margin:4px 0 0">${open.length?`${open.length} point${open.length>1?'s':''} not answered yet (use n/a when it doesn't apply to this turbine): ${lst(open)}`:'All control points answered. Completing locks the answers and issues the report.'}</p>
+   ${soft2.length?`<p class="need" style="margin:6px 0 0">● ${soft2.length} requested photo${soft2.length>1?'s or values':' or value'} missing: ${lst(soft2)}. You can complete now and add photos later.</p>`:''}</div>
+   <button class="btn primary" data-complete="${a.id}" ${open.length?'disabled':''}>${ICON.check}Complete</button></div></div>`}
+function itemCard(a,it,r,locked){
+  const s=r.s||'',ph=r.photos||[],up=(S.uploads[a.id+'|'+it.code]||0);
+  const needPh=s!=='na'&&(it.o.p==='always'||(it.o.p==='nok'&&s==='nok'))&&!ph.length;
+  const m=it.o.m;let meas='';
+  if(m){const n=m.n||1;meas=`<div class="meas">${Array.from({length:n},(_,i)=>`<label>${n>1?`Reading ${i+1}`:'Value'} <input id="v-${it.code}-${i}" data-val="${it.code}" data-i="${i}" inputmode="decimal" value="${esc((r.v||[])[i]??'')}" ${locked?'disabled':''}> ${esc(m.u)}</label>`).join('')}${m.max!=null?`<span class="pill na">limit ≤ ${m.max} ${esc(m.u)}</span>`:''}</div>`}
+  if(it.o.d)meas+=`<div class="meas"><label>${esc(it.o.d)} <input type="date" id="d-${it.code}" data-date="${it.code}" value="${esc(r.d||'')}" ${locked?'disabled':''} style="width:auto;font-family:var(--f-body)"></label>${r.d&&r.d<today()?'<span class="pill nok">expired</span>':''}</div>`;
+  const xs=S.actions.filter(x=>x.aid===a.id&&x.code===it.code);
+  return `<article class="item s-${s}" id="it-${it.code}">
+   <div class="ihead"><span class="code">${it.code}</span><span class="wt" title="Weight ${it.w}">${[1,2,3].map(i=>`<i class="${i<=it.w?'on':''}"></i>`).join('')}</span></div>
+   <p class="itext">${esc(it.text)}</p>${it.o.h?`<p class="hint">${esc(it.o.h)}</p>`:''}
+   ${meas}
+   ${it.o.flow?`<div class="flowline" aria-label="Flow">${it.o.flow.map(f=>`<span>${esc(f)}</span>`).join('<i>→</i>')}</div>`:''}
+   ${it.o.sc?`<div class="seg scale n${SCALES[it.o.sc].length}" role="group" aria-label="Result ${it.code}">${SCALES[it.o.sc].map(([k,t,v,cat])=>`<button class="${cat}" data-set="${it.code}" data-s="${k}" aria-pressed="${r.o===k}" ${locked?'disabled':''}>${t}</button>`).join('')}</div>`
+   :`<div class="seg" role="group" aria-label="Result ${it.code}">${[['ok','OK'],['nok','nOK'],['na','n/a']].map(([k,t])=>`<button class="${k}" data-set="${it.code}" data-s="${k}" aria-pressed="${s===k}" ${locked?'disabled':''}>${t}</button>`).join('')}</div>`}
+   <div class="iact">
+    ${S.canWrite&&S.assets?`<button class="btn sm${needPh?' primary':''}" data-pickphoto="${it.code}">${ICON.cam}${needPh?'Add photo':'Photo'}</button>`:''}
+    ${(S.refs[it.code]||[]).length||S.canEdit?`<button class="btn sm ghost" data-how="${it.code}" aria-expanded="${!!S.openHow[it.code]}">${ICON.doc}How to${(S.refs[it.code]||[]).length?` <span class="pill nad" style="padding:0 6px">${S.refs[it.code].length}</span>`:''}</button>`:''}
+    ${!locked?`<button class="btn sm ghost" data-notebtn="${it.code}">${ICON.note}Note</button>`:''}
+    ${(s==='nok'||s==='imp'||s==='meas')&&S.canWrite?`<button class="btn sm ${s==='nok'?'danger':''}" data-mkact="${it.code}">${ICON.flag}${s==='meas'?'Raise measurement action':'Raise action'}</button>`:''}
+    ${xs.map(x=>{const st=actState(x);return `<button class="pill ${st.k==='closed'?'ok':st.k==='review'?'warn':'nok'}" style="border:0;cursor:pointer" data-openact="${x.id}">${ICON.flag.replace('<svg','<svg width="12" height="12"')} ${esc(st.t)}</button>`}).join('')}
+    ${needPh?`<span class="need">● Photo required</span>`:''}
+    ${r.by?`<span class="muted" style="font-size:12px;margin-left:auto">${esc(nm(r.by))} · ${fmtDT(r.at)}</span>`:''}
+   </div>
+   ${S.openHow[it.code]?howPanel(it):''}
+   ${ph.length||up?`<div class="thumbs">${ph.map(p=>`<div class="thumb"><img alt="Photo ${it.code}" src="${blob(p)}" data-zoom="${p}" loading="lazy">${locked?'':`<button class="x" data-delph="${it.code}" data-p="${p}" aria-label="Remove photo">×</button>`}</div>`).join('')}${up?Array.from({length:up},()=>'<div class="thumb loading">Uploading…</div>').join(''):''}</div>`:''}
+   ${TPL[it.tpl].improve&&(s==='nok'||s==='imp'||s==='meas')?`<div class="imp3">${[['obs','Observation','What was seen, where'],['imp','Potential impact','Risk, inefficiency or discomfort it causes'],['prop','Improvement proposal','What should change']].map(([f,l,ph])=>`<label><span>${l}</span><textarea class="note" id="${f}-${it.code}" data-fld="${f}" data-code="${it.code}" placeholder="${ph}" ${locked?'disabled':''}>${esc(r[f]||'')}</textarea></label>`).join('')}</div>`:''}
+   ${(r.note||S.openNotes?.[it.code]||(s==='nok'&&!TPL[it.tpl].improve))?`<textarea class="note" id="nt-${it.code}" data-note="${it.code}" placeholder="${s==='nok'?'Describe the finding and its exact location':'Note'}" ${locked?'disabled':''}>${esc(r.note||'')}</textarea>`:''}
+  </article>`;
+}
+function howPanel(it){const refs=S.refs[it.code]||[],up=S.uploads['ref|'+it.code]||0;
+  return `<div class="how" style="margin-top:10px;background:var(--nad-soft);border-radius:8px;padding:10px 12px">
+   <div class="eyebrow" style="color:var(--nad)">How to inspect · reference</div>
+   <p style="margin:4px 0 0;font-size:14px">${esc(it.text)}${it.o.h?' '+esc(it.o.h):''}${it.o.p==='always'?' Photo mandatory.':it.o.p==='nok'?' Photo mandatory when nOK.':''} Mark n/a when this turbine has a different specification.</p>
+   ${refs.length||up?`<div class="thumbs">${refs.map(p=>`<div class="thumb"><img alt="Reference ${it.code}" src="${blob(p)}" data-zoom="${p}" loading="lazy">${S.canEdit?`<button class="x" data-delref="${it.code}" data-p="${p}" aria-label="Remove reference photo">×</button>`:''}</div>`).join('')}${Array.from({length:up},()=>'<div class="thumb loading">Uploading…</div>').join('')}</div>`:'<p class="muted" style="font-size:13px;margin:6px 0 0">No reference photo yet.</p>'}
+   ${(()=>{const T=TPL[it.tpl],d=T.doc&&S.docs[T.doc],pg=d&&d.sections&&d.sections[it.sec.id];return pg?`<div style="margin-top:8px"><button class="btn sm" data-go="doc-${d.id}-${pg}">${ICON.doc}Open SWI · page ${pg}</button></div>`:''})()}
+   ${S.canEdit&&S.assets?`<div style="margin-top:8px"><button class="btn sm" data-pickref="${it.code}">${ICON.plus}Add reference photo</button></div>`:''}</div>`}
+async function saveRefs(code,list){const map={...S.refs,[code]:list};try{await S.db.doc('refs/items').set({map,updatedAt:new Date().toISOString()})}catch(e){toast(dbMsg(e))}}
+async function saveAns(aid,code,patch){
+  const a=S.assess.find(x=>x.id===aid);if(!a)return;
+  const cur=answersOf(a)[code]||{};const next={...cur,...patch,by:S.meId,at:new Date().toISOString()};
+  S.queue[aid+'|'+code]={aid,code,val:next,t:Date.now()};Q.save();render();flush();
+}
+async function shrink(file){
+  try{const bmp=await createImageBitmap(file,{imageOrientation:'from-image'});const k=Math.min(1,1920/Math.max(bmp.width,bmp.height));
+    const c=document.createElement('canvas');c.width=Math.round(bmp.width*k);c.height=Math.round(bmp.height*k);c.getContext('2d').drawImage(bmp,0,0,c.width,c.height);
+    return await new Promise(r=>c.toBlob(b=>r(b||file),'image/jpeg',.86));}catch(e){return file}
+}
+async function uploadPhotos(files){
+  if(!S.assets){toast('Photo upload is not available with your access level.');return []}
+  const out=[];for(const f of files){try{const b=await shrink(f);const r=await S.assets.upload(b,{type:b.type&&/^image\/(png|jpeg|gif|webp)$/.test(b.type)?b.type:'image/jpeg'});out.push(r.id)}
+    catch(e){toast(e&&e.code==='too_large'?'That photo is too large (max 20 MB).':e&&e.code==='quota_or_state'?'Photo storage is full. Ask an editor to remove unused photos.':'A photo could not be uploaded. Try again.')}}
+  return out;
+}
+const dbMsg=e=>e&&e.code==='invalid_argument'?'You don’t have permission to change this.':e&&e.code==='quota_exceeded'?'The database is full. Ask the owner to archive old assessments.':'Could not save. Check your connection and try again.';
+
+/* ---------- report ---------- */
+function vReport(id){
+  const a=S.assess.find(x=>x.id===id);
+  if(!a)return S.loadedA?`<div class="card empty"><h2>Report not found</h2><button class="btn" data-go="home">Back</button></div>`:`<div class="card empty"><p class="muted">Loading report…</p></div>`;
+  const sc=scoreOf(a),T=sc.T,ans=answersOf(a);want([...(a.inspectors||[]),a.completedBy,a.createdBy]);
+  const finds=T.items.filter(i=>ans[i.code]?.s==='nok');
+  const meas=T.items.filter(i=>i.o.m&&ans[i.code]?.v&&ans[i.code].v.some(v=>v!==''&&v!=null));
+  const notes=T.items.filter(i=>ans[i.code]?.note&&ans[i.code].s!=='nok');
+  const photos=T.items.flatMap(i=>(ans[i.code]?.photos||[]).map(p=>[i.code,p]));
+  const xs=S.actions.filter(x=>x.aid===a.id);
+  return `${notices()}<div class="row spread" style="margin-bottom:14px"><button class="btn sm ghost" data-go="home">${ICON.back}Assessments</button>
+   <div class="row" style="gap:8px">${a.status!=='completed'?`<button class="btn sm" data-go="a-${a.id}">Continue inspection</button>`:`<button class="btn sm" data-go="a-${a.id}">Open checklist</button>`}
+    ${FIELD?`<button class="btn sm primary" data-export="${a.id}">${ICON.dl}Send to online app</button>`:`<button class="btn sm" data-copylink="${a.id}">${ICON.link}Copy link</button>`}
+    ${S.dl?`<button class="btn sm primary" data-html="${a.id}">${ICON.dl}Download report</button><button class="btn sm" data-csv="${a.id}">CSV</button>`:''}</div></div>
+  <article class="report">
+   <div class="rband"><div><div class="eyebrow">nadara · ${esc(T.name)} (${T.tag}) · report</div><h1>${esc(a.wtg)} · ${esc(a.wf)}</h1>${a.country?`<div style="margin-top:4px;font-size:14px;opacity:.9">${esc(a.country)}${a.countryOk?'':' (not confirmed)'}</div>`:''}</div>
+    <div class="pill" style="background:rgba(255,255,255,.18);color:#fff">${a.status==='completed'?'Completed '+fmtD(a.completedAt):'Draft – in progress'}</div></div>
+   <div class="rsec">${T.site?`<div class="idgrid">
+    <div><span>${T.site==='warehouse'?'Warehouse':'Substation'}</span><b>${esc(a.wtg)}</b></div><div><span>${T.site==='warehouse'?'Location':'Wind farm'}</span><b>${esc(a.wf)}</b></div><div><span>Inspection date</span><b>${fmtD(a.date)}</b></div><div><span>Floor area</span><b class="mono">${a.area?esc(a.area)+' m²':'—'}</b></div>
+    <div><span>${T.site==='warehouse'?'Usual occupancy':'Manned'}</span><b>${esc(a.occ||'—')}</b></div><div><span>Inspected by</span><b>${(a.inspectors||[]).map(nm).map(esc).join(', ')||'—'}</b></div><div><span>Findings (nOK)</span><b class="mono">${sc.nok} · ${sc.crit} critical</b></div><div><span>Improvements</span><b class="mono">${sc.imp}</b></div>
+   </div>`:T.vehicle?`<div class="idgrid">
+    <div><span>Licence plate</span><b class="mono">${esc(a.wtg)}</b></div><div><span>Odometer</span><b class="mono">${esc(a.hours||'—')} km</b></div><div><span>Make / model</span><b>${esc(a.type||'—')}</b></div><div><span>Wind farm / base</span><b>${esc(a.wf)}</b></div>
+    <div><span>Inspection date</span><b>${fmtD(a.date)}</b></div><div><span>Vehicle responsible(s)</span><b>${(a.resp||[]).map(nm).map(esc).join(', ')||'—'}</b></div><div><span>Inspected by</span><b>${(a.inspectors||[]).map(nm).map(esc).join(', ')||'—'}</b></div><div><span>Findings (nOK)</span><b class="mono">${sc.nok} · ${sc.crit} critical</b></div>
+   </div>`:`<div class="idgrid">
+    <div><span>Wind farm</span><b>${esc(a.wf)}</b></div><div><span>Turbine</span><b>${esc(a.wtg)}</b></div><div><span>Type</span><b>${esc(a.type)} ${esc(a.mk||'')}</b></div><div><span>Inspection date</span><b>${fmtD(a.date)}</b></div><div><span>Transformer</span><b>${esc(TRAFO[a.trafo]||'—')}</b></div>
+    <div><span>${T.mk?'Operating hours':'Reason'}</span><b class="${T.mk?'mono':''}">${esc((T.mk?a.hours:a.reason)||'—')}</b></div><div><span>Inspectors</span><b>${(a.inspectors||[]).map(nm).map(esc).join(', ')||'—'}</b></div><div><span>Control points</span><b class="mono">${sc.done}/${sc.total}</b></div><div><span>Findings (nOK)</span><b class="mono">${sc.nok} · ${sc.crit} structural</b></div>
+   </div>`}</div>
+   <div class="rsec"><h2>Condition score</h2><div class="scorebox">
+    <div class="stack" style="align-items:center;gap:8px"><div class="bigring">${ring(sc.pct,150,14)}<div><b>${sc.pct==null?'–':Math.round(sc.pct)}</b><span class="muted" style="font-size:12px">of 100</span></div></div>
+     <div class="row" style="gap:8px"><span class="grade g-${sc.grade.g}">${sc.grade.g}</span><b style="font-weight:500">${esc(sc.grade.t)}</b></div>
+     <p class="muted" style="font-size:12px;max-width:240px;text-align:center;margin:0">${T.secW?'Section-weighted score (weights next to each section); inside each section critical points ×3, major ×2, minor ×1; graded answers count partially; n/a excluded. A critical nOK caps the grade at C.':`Weighted score: ${T.vehicle?'critical':'structural'} points ×3, major ×2, minor ×1; n/a excluded. A ${T.vehicle?'critical':'structural'} nOK caps the grade at C.`}</p></div>
+    ${T.vehicle?van(sc):T.site==='warehouse'?whMap(sc):T.site==='substation'?ssMap(sc):turbine(sc,a)}
+    <div class="bars">${T.sections.map(s=>{const x=sc.secs[s.id];return `<div class="bar"><span class="t" title="${esc(s.t)}"><span class="mono muted" style="font-size:11px">${s.id}${T.secW?` · ${T.secW[s.id]}%`:''}</span> ${esc(s.t)}</span><span class="tr"><i style="width:${x.pct??0}%;background:${pctColor(x.pct)}"></i></span><span class="n">${x.pct==null?'—':Math.round(x.pct)+'%'}</span></div>`}).join('')}</div>
+   </div></div>
+   <div class="rsec"><h2>Findings <span class="pill nok">${finds.length}</span></h2>
+    ${finds.length?finds.map(i=>{const r=ans[i.code];const x=xs.filter(y=>y.code===i.code);return `<div class="finding"><div class="row spread"><span><span class="code">${i.code}</span> <span class="muted" style="font-size:12px">${esc(i.sec.t)}</span></span>${x.length?x.map(y=>{const st=actState(y);return `<button class="pill ${st.k==='closed'?'ok':st.k==='review'?'warn':'nok'}" style="border:0;cursor:pointer" data-openact="${y.id}">Action · ${esc(st.t)}</button>`}).join(''):'<span class="pill na">No action raised</span>'}</div>
+      <div>${esc(i.text)} ${i.o.sc?ansPill(i,r):''}</div>${r.obs||r.prop?impCard(r):''}${r.v&&r.v.some(v=>v!=='')?`<div class="mono" style="font-size:13px">Measured: ${r.v.filter(v=>v!=='').map(esc).join(' / ')} ${esc(i.o.m.u)}</div>`:''}${r.note?`<div class="muted">${esc(r.note)}</div>`:''}
+      ${(r.photos||[]).length?`<div class="thumbs">${r.photos.map(p=>`<button class="thumb" data-zoom="${p}"><img alt="" src="${blob(p)}" loading="lazy"></button>`).join('')}</div>`:''}</div>`}).join(''):'<p class="muted" style="margin:0">No non-conformities recorded.</p>'}</div>
+   ${notes.length?`<div class="rsec"><h2>${T.k==='WTQCIA'?'Observations and improvement ideas':'Observations'}</h2>${notes.map(i=>`<div class="finding"><div><span class="code">${i.code}</span> <span class="muted" style="font-size:12px">${esc(i.sec.t)}</span> ${stPill(ans[i.code].s)}</div><div>${esc(i.text)}</div><div class="muted">${esc(ans[i.code].note)}</div></div>`).join('')}</div>`:''}
+   ${(()=>{const L=T.items.filter(i=>ans[i.code]&&(ans[i.code].s==='imp'||ans[i.code].s==='meas'));return L.length?`<div class="rsec"><h2>Improvement opportunities <span class="pill warn">${L.length}</span></h2>${L.map(i=>{const r=ans[i.code];const x=xs.filter(y=>y.code===i.code);return `<div class="finding"><div class="row spread"><span><span class="code">${i.code}</span> <span class="muted" style="font-size:12px">${esc(i.sec.t)}</span></span>${x.length?x.map(y=>{const st=actState(y);return `<button class="pill ${st.k==='closed'?'ok':st.k==='review'?'warn':'nok'}" style="border:0;cursor:pointer" data-openact="${y.id}">Action · ${esc(st.t)}</button>`}).join(''):''}</div><div>${esc(i.text)} ${ansPill(i,r)}</div>${impCard(r)}${(r.photos||[]).length?`<div class="thumbs">${r.photos.map(p=>`<button class="thumb" data-zoom="${p}"><img alt="" src="${blob(p)}" loading="lazy"></button>`).join('')}</div>`:''}</div>`}).join('')}</div>`:''})()}
+   ${T.items.some(i=>i.o.d&&ans[i.code]?.d)?`<div class="rsec"><h2>Inspection dates</h2><div class="tbl"><table><thead><tr><th>Code</th><th>Equipment</th><th>Next inspection</th><th>Result</th></tr></thead><tbody>${T.items.filter(i=>i.o.d&&ans[i.code]?.d).map(i=>`<tr><td class="mono">${i.code}</td><td>${esc(i.text)}</td><td class="mono" style="${ans[i.code].d<today()?'color:var(--nok)':''}">${fmtD(ans[i.code].d)}${ans[i.code].d<today()?' · expired':''}</td><td>${stPill(ans[i.code].s)}</td></tr>`).join('')}</tbody></table></div></div>`:''}
+   ${meas.length?`<div class="rsec"><h2>Measurements</h2><div class="tbl"><table><thead><tr><th>Code</th><th>Control point</th><th>Value</th><th>Limit</th><th>Result</th></tr></thead><tbody>${meas.map(i=>{const r=ans[i.code];return `<tr><td class="mono">${i.code}</td><td>${esc(i.text)}</td><td class="mono">${r.v.filter(v=>v!=='').map(esc).join(' / ')} ${esc(i.o.m.u)}</td><td class="mono">${i.o.m.max!=null?'≤ '+i.o.m.max+' '+esc(i.o.m.u):'—'}</td><td>${stPill(r.s)}</td></tr>`}).join('')}</tbody></table></div></div>`:''}
+   <div class="rsec"><h2>Actions <span class="pill nad">${xs.length}</span></h2>${xs.length?`<div class="tbl"><table><thead><tr><th>Priority</th><th>Action</th><th>Owner</th><th>Due</th><th>Status</th></tr></thead><tbody>${xs.map(x=>{const st=actState(x);want([x.assignee]);return `<tr><td><span class="pill" style="background:var(--na-soft)"><i class="sev-${x.prio}" style="width:8px;height:8px;border-radius:50%;display:inline-block"></i>${esc(x.prio)}</span></td><td><a href="#act-${x.id}">${esc(x.title)}</a><div class="mono muted" style="font-size:11px">${esc(x.code)}</div></td><td>${esc(nm(x.assignee))}</td><td class="mono">${esc(x.due||'—')}</td><td>${st.k==='closed'?'<span class="pill ok">Closed</span>':st.k==='review'?`<span class="pill warn">${esc(st.t)}</span>`:`<span class="pill nok">${esc(st.t)}</span>`}</td></tr>`}).join('')}</tbody></table></div>`:'<p class="muted" style="margin:0">No actions raised from this assessment.</p>'}</div>
+   ${photos.length?`<div class="rsec"><h2>Photo record <span class="pill na">${photos.length}</span></h2><div class="gallery">${photos.map(([c,p])=>`<button class="thumb" data-zoom="${p}" title="${c}"><img alt="${c}" src="${blob(p)}" loading="lazy"></button>`).join('')}</div></div>`:''}
+   <div class="rsec"><h2>Validation</h2><div class="signoff"><div><div class="eyebrow">Validated by</div><b style="font-size:17px;font-weight:500">${esc(a.validatedBy?nm(a.validatedBy):(a.completedBy?nm(a.completedBy):'—'))}</b><div class="muted" style="font-size:13px">${fmtDT(a.validatedAt||a.completedAt)}</div></div>
+    <div class="sigbox">${a.signature?`<img alt="Signature" src="${a.signature}">`:'<span class="muted" style="font-size:13px">Signature</span>'}</div></div>
+    <div class="idgrid" style="margin-top:14px"><div><span>Inspected by</span><b>${(a.inspectors||[]).map(nm).map(esc).join(', ')}</b></div><div><span>Last update</span><b>${fmtDT(a.updatedAt)}</b></div>${missingOf(a).filter(m=>m[1]==='photo missing').length?`<div><span>Photos pending</span><b style="color:var(--warn)">${missingOf(a).filter(m=>m[1]==='photo missing').map(m=>m[0]).join(', ')}</b></div>`:''}</div>
+    <p class="muted" style="font-size:12px;margin:12px 0 0">${T.site?esc(T.name)+'. Improvement opportunities and non-conformities become actions; each closure is validated by the action validators.':T.vehicle?'Service Vehicle Safety &amp; Condition Check. Corrective actions are tracked in the app; each closure is validated by the action validators.':T.k==='LEA'?'Findings follow the SWI Vestas V80 &amp; V90 1.8/2.0 MW – Lifetime Extension Inspection of Wind Turbine Components. Structural defects are reported to Nadara technical department.':'Wind Turbine Quality &amp; Continuous Improvement Assessment. Non-conformities become corrective actions; each closure is validated by two administrators.'}</p></div>
+  </article>`;
+}
+const impCard=r=>(r.obs||r.imp||r.prop)?`<div class="impcard">${[['Observation',r.obs],['Potential impact',r.imp],['Improvement proposal',r.prop]].filter(x=>x[1]).map(([l,v])=>`<div><span>${l}</span><p>${esc(v)}</p></div>`).join('')}</div>`:'';
+const ansPill=(it,r)=>{const o=optOf(it,r);if(!o)return stPill(r&&r.s);const cls={ok:'ok',imp:'warn',meas:'warn',nok:'nok',na:'na'}[o[3]];return `<span class="pill ${cls}">${esc(o[1])}</span>`};
+const stPill=s=>s==='imp'?'<span class="pill warn">Improvement</span>':s==='meas'?'<span class="pill warn">Measurement</span>':s==='ok'?'<span class="pill ok">OK</span>':s==='nok'?'<span class="pill nok">nOK</span>':s==='na'?'<span class="pill na">n/a</span>':'<span class="pill na">—</span>';
+const TRAFO={nacelle:'In the nacelle',mid:'Mid-tower',base:'Tower base (inside)',outside:'Outside the turbine (kiosk)'};
+const trafoDefault=t=>/ECO 100/.test(t||'')?'mid':/Vestas|^V\d/.test(t||'')?'nacelle':'';
+function turbine(sc,a){
+  const c=z=>pctColor(zoneScore(sc,z)),tr=(a&&a.trafo)||'nacelle',P='#720062';
+  const blade=g=>`<path d="M52 82 L48 20 Q52 6 56 20 Z" transform="rotate(${g} 52 82)" fill="${c('blades')}" stroke="var(--surface)" stroke-width="1"/>`;
+  // pictograms: solid Nadara purple with white symbols (signage style)
+  const lift=(x,y)=>`<g><title>Service lift</title><line x1="${x+6}" y1="104" x2="${x+6}" y2="${y}" stroke="${P}" stroke-width=".8" stroke-dasharray="2 1.5"/><rect x="${x}" y="${y}" width="12" height="15" rx="2.2" fill="${P}"/><path d="M${x+6} ${y+2.6}l2.6 3.4h-5.2z M${x+6} ${y+12.4}l2.6 -3.4h-5.2z" fill="#fff"/><line x1="${x+13}" y1="${y+7.5}" x2="90" y2="${y+7.5}" stroke="var(--line)"/><text class="lbl" x="92" y="${y+11}">Service lift</text></g>`;
+  const door=(x)=>`<g><title>Tower entrance door</title><rect x="${x}" y="252" width="10" height="16" rx="1.6" fill="${P}"/><rect x="${x+2}" y="254.5" width="6" height="5" rx=".8" fill="#fff" fill-opacity=".35"/><circle cx="${x+7.6}" cy="262" r="1" fill="#fff"/><rect x="${x-2}" y="267" width="14" height="2" rx=".6" fill="${P}"/></g>`;
+  const tbox=(x,y,w,h)=>`<g><title>Transformer</title><rect x="${x}" y="${y}" width="${w}" height="${h}" rx="2" fill="${c('transformer')}" stroke="${P}" stroke-width="1.2"/><path d="M${x+w/2+1.2} ${y+2.5}l-3.4 ${h/2-0.5}h2.6l-1.2 ${h/2-2.4}l3.6 -${h/2+0.2}h-2.6z" fill="#fff"/></g>`;
+  let T='',towerLbl=190,doorX=67,liftY=128;
+  if(tr==='nacelle')T=`${tbox(110.5,74,13,15)}<line x1="124" y1="88" x2="132" y2="107" stroke="var(--line)"/><text class="lbl" x="134" y="112">Transformer</text>`;
+  if(tr==='mid'){T=`${tbox(65,182,14,16)}<line x1="80" y1="190" x2="91" y2="214" stroke="var(--line)"/><text class="lbl" x="92" y="219">Transformer</text>`;towerLbl=160;liftY=122}
+  if(tr==='base'){T=`${tbox(60,248,11,14)}<line x1="60" y1="254" x2="36" y2="237" stroke="var(--line)"/><text class="lbl" x="0" y="233">Transformer</text>`;doorX=73}
+  if(tr==='outside')T=`<g><title>Transformer kiosk</title>${tbox(100,250,18,18)}<path d="M98 251l11 -5 11 5z" fill="${P}"/></g><line x1="118" y1="256" x2="130" y2="252" stroke="var(--line)"/><text class="lbl" x="132" y="250">Transformer</text><text class="lbl" x="132" y="261">(outside)</text>`;
+  return `<figure style="margin:0"><svg class="turb" viewBox="0 0 200 300" role="img" aria-label="Turbine condition map">
+   <rect x="20" y="268" width="104" height="18" rx="2" fill="${c('foundation')}"/><text class="lbl" x="130" y="281">Foundation</text>
+   <path d="M64 100 L80 100 L86 268 L58 268 Z" fill="${c('tower')}"/><text class="lbl" x="92" y="${towerLbl}">Tower</text>
+   ${lift(66,liftY)}${door(doorX)}
+   <rect x="60" y="94" width="24" height="6" fill="${c('yaw')}"/><text class="lbl" x="92" y="101">Yaw</text>
+   <rect x="58" y="70" width="70" height="24" rx="5" fill="#ffffff" stroke="${P}" stroke-width="1.4"/><text x="64" y="83" fill="${P}" style="font:700 11px Roboto,Arial,sans-serif;letter-spacing:-.2px">nadara</text><rect x="64" y="86.5" width="42" height="4" rx="2" fill="${c('nacelle')}"><title>Nacelle &amp; drivetrain score</title></rect><text class="lbl" x="134" y="78">Nacelle &amp;</text><text class="lbl" x="134" y="89">drivetrain</text>
+   ${T}
+   <g class="rotor">${blade(0)}${blade(120)}${blade(240)}</g>
+   <circle cx="52" cy="82" r="10" fill="${c('hub')}" stroke="var(--surface)" stroke-width="2"/><text class="lbl" x="4" y="110">Hub &amp; pitch</text>
+   <text class="lbl" x="66" y="16">Blades</text>
+  </svg><div class="legend"><span><i style="background:var(--sev1)"></i>≥90</span><span><i style="background:#5aa02c"></i>75–89</span><span><i style="background:var(--sev3)"></i>50–74</span><span><i style="background:var(--sev4)"></i>&lt;50</span><span><i style="background:var(--na-soft)"></i>no data</span></div></figure>`;
+}
+
+/* ---------- actions ---------- */
+function vActions(){
+  const all=S.actions;want(all.flatMap(x=>[x.assignee,x.createdBy]));
+  const f=S.xfilter;const L=all.filter(x=>{const k=actState(x).k;return f==='all'||(f==='active'?k!=='closed':f===k)});
+  const c=k=>all.filter(x=>actState(x).k===k).length;
+  return `${notices()}<div class="pagehead"><div><div class="eyebrow">Raised from nOK findings</div><h1>Actions</h1></div></div>
+   ${!S.admins.length?`<div class="notice">No validators assigned, so actions can't be closed yet. ${S.isOwner?'<a href="#settings">Choose them in Settings</a>.':'Ask the owner of this page to choose them in Settings.'}</div>`:''}
+   <div class="chips" style="margin-bottom:12px">${[['active','Active',all.length-c('closed')],['open','Open',c('open')],['review','Awaiting validation',c('review')],['closed','Closed',c('closed')],['all','All',all.length]].map(([k,t,n])=>`<button class="chip" data-xfilter="${k}" aria-pressed="${f===k}">${t} · ${n}</button>`).join('')}</div>
+   <div class="list">${L.length?L.map(xCard).join(''):`<div class="card empty"><h2>${all.length?'Nothing here':'No actions yet'}</h2><p class="muted">${all.length?'No action matches this filter.':'When an inspector marks a control point nOK, “Raise action” creates the corrective task here, with the finding photos attached.'}</p></div>`}</div>`;
+}
+function xCard(x){const st=actState(x),a=S.assess.find(y=>y.id===x.aid);
+  return `<button class="xcard" data-openact="${x.id}"><span class="sev sev-${esc(x.prio)}"></span><div style="min-width:0"><h3>${esc(x.title)}</h3>
+   <div class="meta"><span class="mono">${esc(x.code)}</span><span>${a?esc(a.wtg+' · '+a.wf):''}</span><span>${esc(nm(x.assignee))}</span>${x.due?`<span style="${isOverdue(x)?'color:var(--nok)':''}">due ${esc(x.due)}</span>`:''}</div></div>
+   <span class="pill ${st.k==='closed'?'ok':st.k==='review'?'warn':'nok'}">${esc(st.t)}</span></button>`}
+function sheetMakeAction(aid,code){
+  const a=S.assess.find(x=>x.id===aid),it=ITEM[code],r=answersOf(a)[code]||{};
+  openSheet(`<h2>Raise action</h2><p class="muted" style="margin-top:-6px"><span class="code">${code}</span> ${esc(it.text)}</p>
+   <form id="fact"><label class="field"><span>Action</span><input id="x-title" required value="${esc(r.prop?r.prop.slice(0,140):(r.s==='meas'?'Measure: ':'Correct: ')+it.text.split('.')[0].replace(/\?$/,''))}"></label>
+    <label class="field"><span>Details</span><textarea id="x-desc" rows="3">${esc([r.obs&&'Observation: '+r.obs,r.imp&&'Potential impact: '+r.imp,r.note].filter(Boolean).join('\n'))}</textarea></label>
+    <div class="fgrid"><label class="field"><span>Priority</span><select id="x-prio">${PRIOS.map(p=>`<option ${p===(it.w===3?'High':it.w===2?'Medium':'Low')?'selected':''}>${p}</option>`).join('')}</select></label>
+     <label class="field"><span>Due date</span><input id="x-due" type="date"></label></div>
+    <div class="field"><span>Responsible</span>${peoplePicker('x-own',S.meId?[S.meId]:[])}</div>
+    <p class="muted" style="font-size:13px">${(r.photos||[]).length} finding photo(s) will be attached.</p>
+    <div class="row" style="justify-content:flex-end"><button type="button" class="btn" data-close>Cancel</button><button class="btn primary">Raise action</button></div></form>`);
+  bindPicker('x-own',S.meId?[S.meId]:[],1);
+  $('#fact').onsubmit=async e=>{e.preventDefault();const id=uid();
+    const d={aid,code,title:$('#x-title').value.trim(),desc:$('#x-desc').value.trim(),prio:$('#x-prio').value,due:$('#x-due').value||'',assignee:pickers['x-own'][0]||'',
+      findPhotos:r.photos||[],status:'open',createdBy:S.meId,createdAt:new Date().toISOString()};
+    try{await S.db.doc('actions/'+id).set(d);closeSheet();toast('Action raised')}catch(err){toast(dbMsg(err))}};
+}
+function openAction(id){
+  const x=S.actions.find(y=>y.id===id);if(!x){if(S.loadedX)toast('Action not found');return}
+  const st=actState(x),a=S.assess.find(y=>y.id===x.aid);want([x.assignee,x.createdBy,x.evidence?.by,...S.admins]);
+  const amAdmin=S.admins.includes(S.meId),my=(S.appr[S.meId]||{})[x.id],myDone=my&&x.evidence&&my.ev===x.evidence.at;
+  const step=st.k==='open'?0:st.k==='review'?(Object.values(st.per||{}).filter(d=>d.decision==='approve').length?2:1):3;
+  openSheet(`<div class="row spread"><span class="pill ${st.k==='closed'?'ok':st.k==='review'?'warn':'nok'}">${esc(st.t)}</span><button class="btn sm ghost" data-close aria-label="Close">✕</button></div>
+   <h2 style="margin-top:8px">${esc(x.title)}</h2>
+   <div class="muted" style="font-size:13px"><span class="code">${esc(x.code)}</span> · ${a?`<a href="#r-${a.id}">${esc(a.wtg)} · ${esc(a.wf)}</a>`:''} · <span class="sev-${esc(x.prio)}" style="display:inline-block;width:8px;height:8px;border-radius:50%"></span> ${esc(x.prio)} · ${esc(nm(x.assignee))}${x.due?` · due ${esc(x.due)}`:''}</div>
+   ${amAdmin?`<div class="row" style="gap:8px;margin-top:10px"><button class="btn sm" data-editact="${x.id}">${ICON.note}Edit action</button>${st.k!=='open'?`<button class="btn sm" data-reopenact="${x.id}">Reopen</button>`:''}</div>`:''}
+   <div class="flow">${['Raised','Evidence','Validation','Closed'].map((t,i)=>`<div class="${i<=step?(st.k==='closed'?'okd':'on'):''}">${t}</div>`).join('')}</div>
+   ${x.desc?`<p>${esc(x.desc)}</p>`:''}
+   ${x.returnNote?`<div class="notice">Returned by validation: ${esc(x.returnNote)}</div>`:''}
+   ${(x.findPhotos||[]).length?`<div class="eyebrow">Finding</div><div class="thumbs" style="margin-bottom:12px">${x.findPhotos.map(p=>`<button class="thumb" data-zoom="${p}"><img alt="" src="${blob(p)}"></button>`).join('')}</div>`:''}
+   ${x.evidence?`<div class="eyebrow">Closure evidence · ${esc(nm(x.evidence.by))} · ${fmtDT(x.evidence.at)}</div><div class="thumbs">${(x.evidence.photos||[]).map(p=>`<button class="thumb" data-zoom="${p}"><img alt="" src="${blob(p)}"></button>`).join('')}</div>${x.evidence.note?`<p>${esc(x.evidence.note)}</p>`:''}`:''}
+   ${st.k==='open'&&S.canWrite?`<form id="fev" class="card pad" style="margin-top:12px;box-shadow:none"><h3 style="font-size:16px">Close the task</h3><p class="muted" style="font-size:13px;margin:4px 0 8px">Add at least one photo proving the work is done. The validators then approve or reject the closure.</p>
+     ${S.assets?`<label class="btn sm" for="ev-f">${ICON.cam}Add photos</label><input id="ev-f" type="file" accept="image/*" capture="environment" multiple hidden>`:'<p class="notice">Photo upload is not available with your access level.</p>'}
+     <div class="thumbs" id="ev-th"></div><textarea class="note" id="ev-note" placeholder="What was done"></textarea>
+     <div class="row" style="justify-content:flex-end;margin-top:10px"><button class="btn primary" id="ev-go" disabled>Submit for validation</button></div></form>`:''}
+   ${st.k!=='open'?`<div class="eyebrow" style="margin-top:14px">Validation · ${needAppr()} of ${S.admins.length||'—'} validators must approve</div><div class="valid" style="margin-top:8px">${(S.admins.length?S.admins:[null]).map((id,i)=>{if(!id)return `<div class="vslot"><span class="muted">No validator assigned</span></div>`;
+      const d=(st.per||{})[id];return `<div class="vslot ${d?(d.decision==='approve'?'ok':'nok'):''}"><div class="row" style="gap:8px">${av(id).replace('<img','<img style="width:26px;height:26px;border-radius:50%"')}<b style="font-weight:500">${esc(nm(id))}</b></div>
+       <span style="font-size:13px">${d?(d.decision==='approve'?'Approved':'Rejected')+' · '+fmtDT(d.at):'Pending'}</span>${d&&d.note?`<span class="muted" style="font-size:13px">${esc(d.note)}</span>`:''}</div>`}).join('')}</div>
+     ${st.k==='review'&&amAdmin&&!myDone?`<div class="card pad" style="margin-top:12px;box-shadow:none"><textarea class="note" id="ap-note" placeholder="Validation comment (required to reject)"></textarea>
+       <div class="row" style="justify-content:flex-end;margin-top:10px"><button class="btn danger" data-decide="reject">Reject</button><button class="btn primary" data-decide="approve">${ICON.check}Approve closure</button></div></div>`:''}`:''}
+  `);
+  const ev=[];const th=$('#ev-th');
+  const drawEv=()=>{if(!th)return;th.innerHTML=ev.map(p=>`<div class="thumb"><img alt="" src="${blob(p)}"></div>`).join('');$('#ev-go').disabled=!ev.length};
+  const fin=$('#ev-f');if(fin)fin.onchange=async()=>{const fs=[...fin.files];fin.value='';th.insertAdjacentHTML('beforeend',fs.map(()=>'<div class="thumb loading">Uploading…</div>').join(''));ev.push(...await uploadPhotos(fs));drawEv()};
+  const fev=$('#fev');if(fev)fev.onsubmit=async e=>{e.preventDefault();if(!ev.length)return;
+    try{await S.db.doc('actions/'+x.id).update({status:'review',returnNote:'',evidence:{photos:ev,note:$('#ev-note').value.trim(),by:S.meId,at:new Date().toISOString()}});toast('Submitted for validation');closeSheet()}catch(err){toast(dbMsg(err))}};
+  document.querySelectorAll('[data-decide]').forEach(b=>b.onclick=async()=>{const dec=b.dataset.decide,note=$('#ap-note').value.trim();
+    if(dec==='reject'&&!note){toast('Write why the closure is rejected');$('#ap-note').focus();return}
+    b.disabled=true;
+    try{await S.db.doc('approvals/'+S.meId+'/items/'+x.id).set({decision:dec,note,ev:x.evidence.at,at:new Date().toISOString()});
+      if(dec==='reject')await S.db.doc('actions/'+x.id).update({status:'open',returnNote:note});
+      else{const ap=1+S.admins.filter(i=>i!==S.meId).filter(i=>{const od=(S.appr[i]||{})[x.id];return od&&od.ev===x.evidence.at&&od.decision==='approve'}).length;if(ap>=needAppr())await S.db.doc('actions/'+x.id).update({status:'closed',closedAt:new Date().toISOString()})}
+      toast(dec==='approve'?'Closure approved':'Returned to the responsible');closeSheet()}catch(err){b.disabled=false;toast(dbMsg(err))}});
+}
+
+function sheetEditAction(id){const x=S.actions.find(y=>y.id===id);if(!x)return;
+  openSheet(`<h2>Edit action</h2><form id="fedit"><label class="field"><span>Action</span><input id="e-title" required value="${esc(x.title)}"></label>
+   <label class="field"><span>Details</span><textarea id="e-desc" rows="3">${esc(x.desc||'')}</textarea></label>
+   <div class="fgrid"><label class="field"><span>Priority</span><select id="e-prio">${PRIOS.map(p=>`<option ${p===x.prio?'selected':''}>${p}</option>`).join('')}</select></label>
+    <label class="field"><span>Due date</span><input id="e-due" type="date" value="${esc(x.due||'')}"></label></div>
+   <div class="field"><span>Responsible</span>${peoplePicker('e-own',x.assignee?[x.assignee]:[])}</div>
+   <div class="row" style="justify-content:flex-end"><button type="button" class="btn" data-openact="${x.id}">Cancel</button><button class="btn primary">Save changes</button></div></form>`);
+  bindPicker('e-own',x.assignee?[x.assignee]:[],1);
+  $('#fedit').onsubmit=async e=>{e.preventDefault();try{await S.db.doc('actions/'+x.id).update({title:$('#e-title').value.trim(),desc:$('#e-desc').value.trim(),prio:$('#e-prio').value,due:$('#e-due').value||'',assignee:pickers['e-own'][0]||'',editedBy:S.meId,editedAt:new Date().toISOString()});toast('Action updated');closeSheet()}catch(err){toast(dbMsg(err))}}}
+function sheetSign(a){
+  openSheet(`<h2>Validate and sign</h2><p class="muted" style="margin-top:-6px">${esc(tplOf(a).name)} · ${esc(a.wtg)} · ${esc(a.wf)}</p>
+   <div class="field"><span>Validated by</span><b style="font-weight:500">${esc(nm(S.meId))}</b></div>
+   <div class="field"><span>Signature</span><canvas id="sig" class="sigpad" width="600" height="220" aria-label="Signature pad: sign with your finger or mouse"></canvas></div>
+   <div class="row spread"><button type="button" class="btn sm ghost" id="sig-clear">Clear</button><div class="row" style="gap:8px"><button type="button" class="btn" data-close>Cancel</button><button class="btn primary" id="sig-ok" disabled>${ICON.check}Sign and complete</button></div></div>`);
+  const cv=$('#sig'),cx=cv.getContext('2d');let drawing=false,inked=false;
+  const pt=e=>{const r=cv.getBoundingClientRect();return [(e.clientX-r.left)*cv.width/r.width,(e.clientY-r.top)*cv.height/r.height]};
+  cx.lineWidth=3;cx.lineCap='round';cx.lineJoin='round';cx.strokeStyle='#1d1620';
+  cv.onpointerdown=e=>{drawing=true;cv.setPointerCapture(e.pointerId);const [x,y]=pt(e);cx.beginPath();cx.moveTo(x,y)};
+  cv.onpointermove=e=>{if(!drawing)return;const [x,y]=pt(e);cx.lineTo(x,y);cx.stroke();if(!inked){inked=true;$('#sig-ok').disabled=false}};
+  cv.onpointerup=cv.onpointercancel=()=>{drawing=false};
+  $('#sig-clear').onclick=()=>{cx.clearRect(0,0,cv.width,cv.height);inked=false;$('#sig-ok').disabled=true};
+  $('#sig-ok').onclick=async()=>{const b=$('#sig-ok');b.disabled=true;const sig=cv.toDataURL('image/png');const now=new Date().toISOString();
+    try{await flush();await S.db.doc('assessments/'+a.id).update({status:'completed',completedAt:now,completedBy:S.meId,validatedBy:S.meId,validatedAt:now,signature:sig,score:scoreOf(a).pct});closeSheet();go('r-'+a.id)}
+    catch(err){b.disabled=false;toast('Could not complete: check the network and try again.')}};
+}
+function countryCard(a,locked){const ok=!!a.countryOk;
+  return `<article class="item ${ok?'s-ok':''}" id="it-Country" style="margin-top:16px"><div class="ihead"><span class="code">C00.010</span><span class="eyebrow">General</span></div>
+   <p class="itext">Country of the ${tplOf(a).vehicle?'vehicle base':tplOf(a).site?'site':'wind farm'} confirmed.</p>
+   <div class="row" style="gap:8px;margin-top:8px"><select id="cc-${a.id}" class="btn" style="border-radius:9px;min-height:44px" ${locked?'disabled':''} aria-label="Country">${COUNTRIES.map(c=>`<option ${c===(a.country||lastCountry())?'selected':''}>${c}</option>`).join('')}</select>
+   ${ok?`<span class="pill ok">${ICON.check.replace('<svg','<svg width="12" height="12"')} Confirmed</span>`:(locked?'':`<button class="btn primary" data-country="${a.id}">${ICON.check}Confirm country</button>`)}</div></article>`}
+function sheetName(){openSheet(`<h2>Welcome to Nadara QA Field</h2><p class="muted" style="margin-top:-6px">This app works without network. Everything is saved on this phone until you send it to the online app.</p>
+  <form id="fname"><label class="field"><span>Your name (appears on inspections and signatures)</span><input id="me-name" required value="${esc(window.NQA_myName())}" autocomplete="name"></label>
+  <div class="row" style="justify-content:flex-end"><button class="btn primary">Save</button></div></form>`);
+  $('#fname').onsubmit=e=>{e.preventDefault();const n=$('#me-name').value.trim();if(!n)return;window.NQA_setMyName(n);S.names[S.meId]=n;if(S.me)S.me.name=n;closeSheet();render();toast('Saved')}}
+/* field package: export from the field app, import into the online app */
+async function exportPackage(aid,btn){const a=S.assess.find(x=>x.id===aid);if(!a)return;if(btn)btn.disabled=true;toast('Preparing the file…');
+  try{const xs=S.actions.filter(x=>x.aid===aid);const ans=answersOf(a);const ids=new Set();
+    Object.values(ans).forEach(r=>(r.photos||[]).forEach(p=>ids.add(p)));xs.forEach(x=>{(x.findPhotos||[]).forEach(p=>ids.add(p));((x.evidence||{}).photos||[]).forEach(p=>ids.add(p))});
+    const photos={};for(const id of ids){let b=null;if(String(id).startsWith('local:'))b=await LP.get(id);else if(window.NQA_getBlob)b=await window.NQA_getBlob(id);
+      if(b)photos[id]=await new Promise(res=>{const fr=new FileReader();fr.onload=()=>res(fr.result);fr.onerror=()=>res('');fr.readAsDataURL(b)})}
+    const pkg={format:'nadara-qa-field',v:1,exportedAt:new Date().toISOString(),people:window.NQA_people?window.NQA_people():{},assessment:{...a,answers:ans},actions:xs,photos};
+    const fn=`NQA_${tplOf(a).tag}_${(a.wf+'_'+a.wtg).replace(/[^\w-]+/g,'_')}_${a.date}.json`;
+    await S.dl.save({filename:fn,data:JSON.stringify(pkg)});
+    await S.db.doc('assessments/'+aid).update({exportedAt:new Date().toISOString()});toast('File ready: send it to yourself (Teams, e-mail) and import it in the online app.')}
+  catch(e){if(!e||e.code!=='cancelled')toast('The file could not be created.')}finally{if(btn)btn.disabled=false}}
+async function importPackage(file){
+  let pkg;try{pkg=JSON.parse(await file.text())}catch(e){toast('This file is not a Nadara QA field file.');return}
+  if(!pkg||pkg.format!=='nadara-qa-field'||!pkg.assessment){toast('This file is not a Nadara QA field file.');return}
+  const src=pkg.assessment,nid='f'+String(src.id).replace(/[^\w-]/g,'');
+  if(S.assess.some(x=>x.id===nid)){toast('This inspection was already imported.');go('r-'+nid);return}
+  if(!S.assets){toast('Photo upload is not available with your access level.');return}
+  const ids=Object.keys(pkg.photos||{}),map={};let n=0;
+  const tick=()=>{const el=$('#imp-prog');if(el)el.textContent=`Uploading photos ${n}/${ids.length}…`};
+  openSheet(`<h2>Importing field inspection</h2><p class="muted">${esc(tplOf(src).name)} · ${esc(src.wtg)} · ${esc(src.wf)}</p><p id="imp-prog" class="mono">Starting…</p>`);
+  try{for(const id of ids){const b=await (await fetch(pkg.photos[id])).blob();const r=await S.assets.upload(b,{type:b.type||'image/jpeg'});map[id]=r.id;n++;tick()}
+    const mp=l=>(l||[]).map(p=>map[p]).filter(Boolean);
+    const answers={};for(const [k,r] of Object.entries(src.answers||{}))answers[k]={...r,photos:mp(r.photos)};
+    const {id:_,...rest}=src;
+    await S.db.doc('assessments/'+nid).set({...rest,answers,source:'field',fieldNames:pkg.people||{},importedBy:S.meId,importedAt:new Date().toISOString(),updatedAt:new Date().toISOString(),score:scoreOf({...src,answers}).pct});
+    for(const x of (pkg.actions||[])){const {id:xid,evidence,...xr}=x;await S.db.doc('actions/f'+String(xid).replace(/[^\w-]/g,'')).set({...xr,aid:nid,findPhotos:[...mp(x.findPhotos),...mp((evidence||{}).photos)],status:'open',desc:(xr.desc?xr.desc+'\n':'')+'Raised in the field app.'})}
+    closeSheet();toast('Field inspection imported');go('r-'+nid)}
+  catch(e){closeSheet();toast('Import stopped: check the network and try again.')}}
+/* interactive actions box inside the checklist */
+function actionsBox(a){const xs=S.actions.filter(x=>x.aid===a.id);want(xs.map(x=>x.assignee));
+  const cnt=k=>xs.filter(x=>actState(x).k===k).length;
+  return `<section class="card pad abox" id="abox"><div class="row spread"><div><h2 style="font-size:19px">Actions</h2><div class="muted" style="font-size:13px">${xs.length?`${cnt('open')} open · ${cnt('review')} in validation · ${cnt('closed')} closed`:'No actions yet for this '+(tplOf(a).vehicle?'vehicle':'turbine')+'.'}</div></div>
+   ${S.canWrite?`<button class="btn sm primary" data-quickact="${a.id}">${ICON.plus}Add action</button>`:''}</div>
+   <div id="qa-${a.id}"></div>
+   ${xs.length?`<div class="list" style="margin-top:12px">${xs.map(x=>{const st=actState(x);return `<button class="arow" data-openact="${x.id}"><span class="sev sev-${esc(x.prio)}"></span><span style="min-width:0"><b>${esc(x.title)}</b><span class="meta"><span class="mono">${esc(x.code)}</span><span>${esc(nm(x.assignee))}</span>${x.due?`<span style="${isOverdue(x)?'color:var(--nok)':''}">due ${esc(x.due)}</span>`:''}</span></span><span class="pill ${st.k==='closed'?'ok':st.k==='review'?'warn':'nok'}">${esc(st.t)}</span></button>`}).join('')}</div>`:''}</section>`}
+function quickAct(aid){const box=$('#qa-'+aid);if(!box)return;if(box.innerHTML){box.innerHTML='';return}
+  box.innerHTML=`<form id="fqa" class="qa"><label class="field"><span>What needs to be done</span><input id="qa-title" required placeholder="e.g. Replace expired fire extinguisher"></label>
+   <div class="fgrid"><label class="field"><span>Priority</span><select id="qa-prio">${PRIOS.map(p=>`<option ${p==='Medium'?'selected':''}>${p}</option>`).join('')}</select></label><label class="field"><span>Due date</span><input id="qa-due" type="date"></label></div>
+   <div class="field"><span>Responsible</span>${peoplePicker('qa-own',S.meId?[S.meId]:[])}</div>
+   <div class="row" style="justify-content:flex-end"><button type="button" class="btn sm" data-quickact="${aid}">Cancel</button><button class="btn sm primary">Add action</button></div></form>`;
+  bindPicker('qa-own',S.meId?[S.meId]:[],1);$('#qa-title').focus();
+  $('#fqa').onsubmit=async e=>{e.preventDefault();const id=uid();
+    try{await S.db.doc('actions/'+id).set({aid,code:'GEN',title:$('#qa-title').value.trim(),desc:'',prio:$('#qa-prio').value,due:$('#qa-due').value||'',assignee:pickers['qa-own'][0]||'',findPhotos:[],status:'open',createdBy:S.meId,createdAt:new Date().toISOString()});toast('Action added')}catch(err){toast(dbMsg(err))}}}
+/* floor plans for warehouse and substation */
+const LEG=`<div class="legend"><span><i style="background:var(--sev1)"></i>≥90</span><span><i style="background:#5aa02c"></i>75–89</span><span><i style="background:var(--sev3)"></i>50–74</span><span><i style="background:var(--sev4)"></i>&lt;50</span><span><i style="background:var(--na-soft)"></i>no data</span></div>`;
+function whMap(sc){const c=z=>pctColor(zoneScore(sc,z)),P='#720062';
+  const rack=y=>`<rect x="92" y="${y}" width="112" height="9" rx="1.5" fill="${c('racks')}"/><g stroke="#fff" stroke-opacity=".7" stroke-width=".8">${[0,1,2,3,4,5].map(i=>`<line x1="${110+i*16}" y1="${y}" x2="${110+i*16}" y2="${y+9}"/>`).join('')}</g>`;
+  return `<figure style="margin:0"><svg class="turb plan" viewBox="0 0 300 205" role="img" aria-label="Warehouse condition map" style="max-width:340px">
+   <rect x="8" y="14" width="238" height="164" rx="4" fill="var(--surface)" stroke="${P}" stroke-width="2.2"/><text x="14" y="10" fill="${P}" style="font:700 10px Roboto,Arial,sans-serif">nadara · warehouse</text>
+   <rect x="14" y="20" width="62" height="42" rx="2" fill="${c('building')}"/><text class="plbl" x="45" y="45" text-anchor="middle">Office · WC</text>
+   <rect x="14" y="68" width="62" height="44" rx="2" fill="${c('tools')}"/><rect x="20" y="96" width="40" height="7" rx="1" fill="#fff" fill-opacity=".7"/><text class="plbl" x="45" y="88" text-anchor="middle">Tools · calibration</text>
+   ${rack(26)}${rack(46)}${rack(66)}${rack(86)}<text class="plbl dark" x="148" y="110" text-anchor="middle">Racking · identification</text>
+   <rect x="212" y="20" width="28" height="56" rx="2" fill="${c('quarantine')}"/><path d="M212 30l28-10M212 46l28-16M212 62l28-16M212 76l28-14" stroke="#fff" stroke-opacity=".55" stroke-width="2"/><text class="plbl" x="226" y="48" text-anchor="middle" transform="rotate(90 226 48)">Quarantine</text>
+   <rect x="22" y="152" width="56" height="20" rx="2" fill="${c('flow')}"/><text class="plbl" x="50" y="166" text-anchor="middle">IN</text>
+   <rect x="176" y="152" width="56" height="20" rx="2" fill="${c('flow')}"/><text class="plbl" x="204" y="166" text-anchor="middle">OUT</text>
+   <path d="M50 150 C 60 128, 92 124, 104 116 M190 116 C 200 124, 206 132, 204 150" fill="none" stroke="${P}" stroke-width="1.4" stroke-dasharray="4 3" marker-end="url(#ar)"/>
+   <defs><marker id="ar" viewBox="0 0 8 8" refX="6" refY="4" markerWidth="6" markerHeight="6" orient="auto"><path d="M0 0L8 4L0 8z" fill="${P}"/></marker></defs>
+   <g transform="translate(128 128)"><rect x="0" y="4" width="20" height="10" rx="2" fill="${c('handling')}"/><rect x="12" y="-4" width="8" height="8" rx="1" fill="none" stroke="${c('handling')}" stroke-width="2"/><path d="M-2 -6V14M-2 12H-10" stroke="${c('handling')}" stroke-width="2.2"/><circle cx="4" cy="16" r="3" fill="${P}"/><circle cx="17" cy="16" r="3" fill="${P}"/></g><text class="plbl dark" x="154" y="142">Handling</text>
+   <g><rect x="99" y="160" width="40" height="14" rx="7" fill="${c('safety')}"/><text class="plbl" x="119" y="170" text-anchor="middle">Safety</text></g>
+   <g transform="translate(256 120)">${[0,1,2].map(i=>`<rect x="${i*14}" y="0" width="11" height="16" rx="2" fill="${c('waste')}"/><rect x="${i*14-1}" y="-3" width="13" height="3" rx="1" fill="${P}"/>`).join('')}</g><text class="plbl dark" x="275" y="150" text-anchor="middle">Waste</text>
+  </svg>${LEG}</figure>`}
+function ssMap(sc){const c=z=>pctColor(zoneScore(sc,z)),P='#720062';
+  return `<figure style="margin:0"><svg class="turb plan" viewBox="0 0 300 205" role="img" aria-label="Substation condition map" style="max-width:340px">
+   <path d="M0 186 Q 80 176 150 182 T 300 178 L300 205 L0 205z" fill="${c('remote')}" fill-opacity=".85"/><text class="plbl" x="150" y="198" text-anchor="middle">Access road · remote site readiness</text>
+   <rect x="14" y="18" width="210" height="150" rx="3" fill="var(--surface)" stroke="${c('building')}" stroke-width="5"/><text x="18" y="12" fill="${P}" style="font:700 10px Roboto,Arial,sans-serif">nadara · substation building</text>
+   <rect x="22" y="26" width="104" height="134" rx="2" fill="${c('space')}" fill-opacity=".35"/>
+   <g>${[0,1,2,3,4].map(i=>`<rect x="${28+i*19}" y="30" width="16" height="44" rx="1.5" fill="${c('switchgear')}"/><circle cx="${36+i*19}" cy="40" r="2.2" fill="#fff"/>`).join('')}</g><text class="plbl dark" x="74" y="88" text-anchor="middle">Switchgear</text>
+   <rect x="28" y="92" width="92" height="16" fill="none" stroke="${P}" stroke-width="1" stroke-dasharray="3 2"/><text class="plbl dark" x="74" y="103" text-anchor="middle" style="font-size:8px">working clearance</text>
+   <text class="plbl dark" x="74" y="140" text-anchor="middle">Space &amp; organisation</text>
+   <rect x="132" y="26" width="84" height="64" rx="2" fill="${c('office')}"/><rect x="146" y="44" width="40" height="12" rx="1.5" fill="#fff" fill-opacity=".85"/><rect x="160" y="60" width="12" height="12" rx="3" fill="#fff" fill-opacity=".85"/><text class="plbl" x="174" y="84" text-anchor="middle">Office · workstation</text>
+   <rect x="132" y="96" width="84" height="64" rx="2" fill="${c('storage')}"/><g stroke="#fff" stroke-opacity=".8" stroke-width="2">${[0,1,2].map(i=>`<line x1="140" y1="${108+i*14}" x2="208" y2="${108+i*14}"/>`).join('')}</g><text class="plbl" x="174" y="154" text-anchor="middle">Storage</text>
+   <rect x="196" y="160" width="20" height="8" rx="2" fill="${c('safety')}"/><text class="plbl dark" x="206" y="178" text-anchor="middle" style="font-size:8px">safety</text>
+   <g transform="translate(236 112)">${[0,1,2].map(i=>`<rect x="${i*20}" y="0" width="16" height="24" rx="2" fill="${c('waste')}"/><rect x="${i*20-1}" y="-4" width="18" height="4" rx="1" fill="${P}"/>`).join('')}</g><text class="plbl dark" x="264" y="152" text-anchor="middle">Waste points</text>
+   <g transform="translate(262 28)" fill="none" stroke="${c('remote')}" stroke-width="2.2" stroke-linecap="round"><path d="M0 40V0"/><path d="M-8 10a12 12 0 0 1 16 0M-13 4a19 19 0 0 1 26 0"/></g><text class="plbl dark" x="262" y="82" text-anchor="middle">Coverage</text>
+  </svg>${LEG}</figure>`}
+/* van illustration for vehicle checks */
+function van(sc){const c=z=>pctColor(zoneScore(sc,z)),P='#720062';
+  return `<figure style="margin:0"><svg class="turb" viewBox="0 0 240 170" role="img" aria-label="Vehicle condition map" style="max-width:300px">
+   <path d="M18 112V62q0-8 8-8h112l34 0q8 0 13 6l24 28q5 6 5 13v13z" fill="#ffffff" stroke="${P}" stroke-width="2"/>
+   <path d="M170 60l22 27h-36V60z" fill="${c('cab')}" stroke="${P}" stroke-width="1.2"/><text class="lbl" x="128" y="22">Cab &amp; docs</text><line x1="150" y1="26" x2="176" y2="64" stroke="var(--line)"/>
+   <rect x="28" y="62" width="118" height="40" rx="3" fill="${c('cargo')}" fill-opacity=".9"/><text x="40" y="88" fill="#fff" style="font:700 15px Roboto,Arial,sans-serif">nadara</text><text class="lbl" x="28" y="48">Cargo &amp; safety equipment</text>
+   <rect x="206" y="96" width="14" height="8" rx="2" fill="${c('engine')}" stroke="${P}" stroke-width="1"/><text class="lbl" x="206" y="150">Fluids</text><line x1="213" y1="104" x2="214" y2="141" stroke="var(--line)"/>
+   <path d="M222 92h6v6h-6z" fill="${c('lights')}" stroke="${P}" stroke-width="1"/><circle cx="150" cy="58" r="3" fill="${c('lights')}" stroke="${P}"/><text class="lbl" x="200" y="40">Lighting</text><line x1="214" y1="44" x2="225" y2="90" stroke="var(--line)"/>
+   <g fill="${c('wheels')}" stroke="${P}" stroke-width="2"><circle cx="58" cy="114" r="16"/><circle cx="182" cy="114" r="16"/></g><g fill="#fff"><circle cx="58" cy="114" r="5"/><circle cx="182" cy="114" r="5"/></g><text class="lbl" x="70" y="150">Tyres &amp; bodywork</text>
+   <line x1="4" y1="131" x2="236" y2="131" stroke="var(--line)" stroke-width="1.5"/>
+  </svg><div class="legend"><span><i style="background:var(--sev1)"></i>≥90</span><span><i style="background:#5aa02c"></i>75–89</span><span><i style="background:var(--sev3)"></i>50–74</span><span><i style="background:var(--sev4)"></i>&lt;50</span><span><i style="background:var(--na-soft)"></i>no data</span></div></figure>`}
+/* ---------- SWI library ---------- */
+function vLibrary(){const docs=Object.values(S.docs);
+  return `${notices()}<div class="pagehead"><div><div class="eyebrow">Work instructions on site</div><h1>SWI library</h1></div></div>
+  <div class="list">${docs.length?docs.map(d=>`<button class="acard" data-go="doc-${d.id}"><div class="docic">${ICON.doc}</div><div style="min-width:0"><h3>${esc(d.title)}</h3><div class="meta"><span class="tplb tpl-${esc(d.tpl)}">${esc(d.tpl)}</span><span class="mono">${esc(d.code||'')}</span><span>${(d.pages||[]).length} pages</span><span>${esc(d.status||'')}</span></div></div><span class="pill nad">Open</span></button>`).join('')
+   :`<div class="card empty"><h2>No SWI published yet</h2><p class="muted">Work instructions appear here so technicians can read them on the phone during the inspection.</p></div>`}</div>`}
+function vDoc(arg){const [id,pg]=arg.split('-');const d=S.docs[id];
+  if(!d)return Object.keys(S.docs).length||S.loadedA?`<div class="card empty"><h2>SWI not found</h2><button class="btn" data-go="library">SWI library</button></div>`:`<div class="card empty"><p class="muted">Loading SWI…</p></div>`;
+  if(pg)setTimeout(()=>document.getElementById('pg-'+pg)?.scrollIntoView(),60);
+  const secs=Object.entries(d.toc||{});
+  return `<div class="row spread" style="margin-bottom:12px"><button class="btn sm ghost" data-back>${ICON.back}Back</button>
+   <div class="row" style="gap:8px">${secs.length?`<select class="btn sm" id="docjump" aria-label="Go to section"><option value="">Go to section…</option>${secs.map(([t,p])=>`<option value="${p}">${esc(t)} · p.${p}</option>`).join('')}</select>`:''}
+   ${S.dl&&d.pdf?`<button class="btn sm" data-pdf="${d.id}">${ICON.dl}PDF</button>`:''}</div></div>
+  <div class="eyebrow">${esc(d.code||'')} · ${esc(d.status||'')}</div><h1 style="font-size:22px;margin:2px 0 14px">${esc(d.title)}</h1>
+  <div class="pages">${(d.pages||[]).map((p,i)=>`<figure class="pg" id="pg-${i+1}"><img alt="Page ${i+1}" src="${blob(p)}" loading="lazy" data-zoom="${p}"><figcaption class="mono">${i+1} / ${d.pages.length}</figcaption></figure>`).join('')}</div>`}
+async function savePdf(id){const d=S.docs[id];if(!d||!S.dl)return;try{const r=await fetch(blob(d.pdf));const b=await r.blob();await S.dl.save({filename:(d.file||d.title)+'.pdf',data:b})}catch(e){if(e&&e.code!=='cancelled')toast('The PDF could not be saved.')}}
+/* ---------- settings ---------- */
+function vSettings(){want(S.admins);
+  if(FIELD)return `<div class="pagehead"><div><div class="eyebrow">Field app</div><h1>Settings</h1></div></div>
+   <div class="grid2"><div class="card pad"><h2 style="font-size:18px">Technician</h2><p style="font-size:17px;margin:8px 0">${esc(window.NQA_myName()||'—')}</p><button class="btn" id="editname">Change name</button></div>
+   <div class="card pad"><h2 style="font-size:18px">How it works</h2><ol class="muted" style="padding-left:18px;margin:8px 0 0"><li>Install this page on the home screen once, with network.</li><li>Work without network: answers, photos, actions and signature stay on this phone.</li><li>With network: open the report, tap <b>Send to online app</b> and share the file to yourself.</li><li>On the online app: <b>Import field file</b>. Validators review the actions there.</li></ol>
+   <p class="muted" style="font-size:13px">Don't uninstall the app or clear browser data before sending: inspections live on this phone until then.</p></div></div>`;
+  return `${notices()}<div class="pagehead"><div><div class="eyebrow">Workflow</div><h1>Settings</h1></div></div>
+  <div class="grid2"><div class="card pad"><h2 style="font-size:18px">Action validators</h2>
+   <p class="muted">Validators review the photo evidence, approve or reject closures, and can edit or reopen any action. With one validator, one approval closes an action; with two or three, two approvals are needed. Each approval is signed under the validator’s own account and can’t be written by anyone else.</p>
+   ${S.isOwner?`<div class="field"><span>Validators (1 to 3)</span>${peoplePicker('adm',S.admDirty?pickers.adm:S.admins)}</div><button class="btn primary" id="saveadm">Save validators</button>`
+    :`<div class="people">${S.admins.map(i=>`<span class="person">${av(i)}${esc(nm(i))}</span>`).join('')||'<span class="muted">Not assigned yet. The owner of this page chooses them.</span>'}</div>`}</div>
+   <div class="card pad"><h2 style="font-size:18px">How the score works</h2><p class="muted" style="margin-top:6px">Each control point carries a weight: structural and safety points ×3, major ×2, minor ×1. The score is the weighted share of OK answers among the points answered OK or nOK; n/a and record-only points are left out.</p>
+    <div class="stack" style="gap:6px;margin-top:8px">${[['A','≥ 90 and no structural nOK','Fit for extended operation'],['B','75–89 and no structural nOK','Fit – minor actions'],['C','50–74, or any structural nOK','Conditional – actions required'],['D','< 50','Not fit – critical findings']].map(([g,r,t])=>`<div class="row" style="gap:10px"><span class="grade g-${g}">${g}</span><span><b style="font-weight:500">${t}</b> <span class="muted">· ${r}</span></span></div>`).join('')}</div>
+    <p class="muted" style="font-size:13px;margin-top:12px">WTQCIA: ${TPL.WTQCIA.items.length} control points in ${TPL.WTQCIA.sections.length} sections (Q01.010 – Q15.040). LEA: ${TPL.LEA.items.length} control points in ${TPL.LEA.sections.length} sections (I01.010 – I16.030). SVSC: ${TPL.SVSC.items.length} control points in ${TPL.SVSC.sections.length} sections (V01.010 – V08.020). WOQCIA: ${TPL.WOQCIA.items.length} control points, section weights ${Object.values(WH_W).join('/')}%. SWQCIA: ${TPL.SWQCIA.items.length} control points, section weights ${Object.values(SS_W).join('/')}%.</p></div></div>`;
+}
+
+/* ---------- export ---------- */
+async function exportCsv(aid){
+  const a=S.assess.find(x=>x.id===aid);if(!a||!S.dl)return;const sc=scoreOf(a),ans=answersOf(a);
+  const q=v=>'"'+String(v??'').replace(/"/g,'""')+'"';
+  const rows=[['Assessment',sc.T.name+' ('+sc.T.tag+')'],['Country',(a.country||'')+(a.countryOk?'':' (not confirmed)')],['Wind farm',a.wf],['Turbine',a.wtg],['Type',a.type+' '+a.mk],['Date',a.date],['Score',sc.pct==null?'':Math.round(sc.pct)],['Grade',sc.grade.g+' '+sc.grade.t],[],
+    ['Code','Section','Control point','Result','Value','Unit','Note','Photos','Recorded by','Recorded at']];
+  for(const i of sc.T.items){const r=ans[i.code]||{};rows.push([i.code,i.sec.t,i.text,(r.s||'').toUpperCase().replace('NOK','nOK').replace('NA','n/a'),(r.v||[]).filter(v=>v!=='').join(' / '),i.o.m?i.o.m.u:'',r.note||'',(r.photos||[]).length,r.by?nm(r.by):'',r.at||''])}
+  rows.push([],['Action','Code','Priority','Responsible','Due','Status']);
+  S.actions.filter(x=>x.aid===aid).forEach(x=>rows.push([x.title,x.code,x.prio,nm(x.assignee),x.due,actState(x).t]));
+  try{await S.dl.save({filename:`${sc.T.tag}_${(a.wf+'_'+a.wtg).replace(/[^\w-]+/g,'_')}_${a.date}.csv`,data:'﻿'+rows.map(r=>r.map(q).join(';')).join('\r\n')})}catch(e){if(e&&e.code!=='cancelled')toast('The file could not be saved.')}
+}
+
+const APP_URL='https://claude.ai/artifact/LiGoP8CFWXVXt1YXs7wrXi';
+async function toDataUrl(src){try{const r=await fetch(src);const b=await r.blob();return await new Promise(res=>{const fr=new FileReader();fr.onload=()=>res(fr.result);fr.onerror=()=>res('');fr.readAsDataURL(b)})}catch(e){return ''}}
+async function exportHtml(aid,btn){const a=S.assess.find(x=>x.id===aid),el=document.querySelector('.report');if(!a||!el||!S.dl)return;const T=tplOf(a);
+  if(btn)btn.disabled=true;toast('Preparing the report…');
+  try{const c=el.cloneNode(true);c.querySelectorAll('button').forEach(b=>{if(!b.classList.contains('thumb')){const sp=document.createElement('span');sp.className=b.className;sp.innerHTML=b.innerHTML;b.replaceWith(sp)}});
+    for(const img of c.querySelectorAll('img')){const d=await toDataUrl(img.getAttribute('src'));if(d)img.setAttribute('src',d);img.removeAttribute('loading')}
+    const css=[...document.querySelectorAll('style')].map(x=>x.textContent).join('\n');
+    const html=`<!doctype html><html lang="en" data-theme="light"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(T.tag+' report – '+a.wtg+' – '+a.wf)}</title><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto+Condensed:wght@500;700&family=Roboto+Mono:wght@400;500&family=Roboto:wght@300;400;500;700&display=swap"><style>${css}
+body{padding:24px 16px} body::before{display:none} .thumb{cursor:default} .gallery .thumb,.thumbs .thumb{width:160px;height:160px} @media print{*{-webkit-print-color-adjust:exact;print-color-adjust:exact} body{padding:0} .report{box-shadow:none;border:0}}</style></head><body><main style="max-width:1000px;margin:0 auto;padding:0">${c.outerHTML}<p style="font-size:11px;color:#6a5f6c;margin-top:12px">Exported ${new Date().toLocaleString()} from the Nadara Turbine Assessments app. Open in a browser; print to PDF if needed.</p></main></body></html>`;
+    await S.dl.save({filename:`${T.tag}_Report_${(a.wf+'_'+a.wtg).replace(/[^\w-]+/g,'_')}_${a.date}.html`,data:html})}
+  catch(e){if(e&&e.code!=='cancelled')toast('The report could not be saved.')}finally{if(btn)btn.disabled=false}}
+/* ---------- overlay helpers ---------- */
+function openSheet(html){$('#overlay').innerHTML=`<div class="sheet-bg" data-bg><div class="sheet" role="dialog" aria-modal="true">${html}</div></div>`;const f=$('#overlay').querySelector('input:not([type=file]),button');if(f&&f.tagName==='INPUT')f.focus()}
+function closeSheet(){$('#overlay').innerHTML='';if(S.pending){S.pending=false;render()}}
+function toast(t){const d=document.createElement('div');d.className='toast';d.setAttribute('role','status');d.textContent=t;document.body.appendChild(d);setTimeout(()=>d.remove(),2800)}
+function zoom(p){const d=document.createElement('div');d.className='lightbox';d.innerHTML=`<img alt="" src="${blob(p)}"><button aria-label="Close">✕</button>`;d.onclick=()=>d.remove();document.body.appendChild(d)}
+
+/* ---------- events ---------- */
+document.addEventListener('click',async e=>{
+  const t=e.target.closest('button,a,[data-zoom]');if(!t)return;const ds=t.dataset;
+  if(t.id==='brand')return go('home');
+  if(ds.go!=null){e.preventDefault();return go(ds.go)}
+  if('new' in ds)return sheetNew();
+  if(ds.newtpl)return sheetNew(ds.newtpl);
+  if(ds.tfilter){S.tfilter=ds.tfilter;return render()}
+  if(ds.pdf)return savePdf(ds.pdf);
+  if('close' in ds)return closeSheet();
+  if('back' in ds){history.length>1?history.back():go('library');return}
+  if(ds.filter){S.filter=ds.filter;return render()}
+  if(ds.xfilter){S.xfilter=ds.xfilter;return render()}
+  if(ds.zoom){e.preventDefault();return zoom(ds.zoom)}
+  if(ds.jump){document.getElementById('sec-'+ds.jump)?.scrollIntoView({behavior:'smooth'});return}
+  if(ds.jumpitem){e.preventDefault();document.getElementById('it-'+ds.jumpitem)?.scrollIntoView({behavior:'smooth',block:'center'});return}
+  const aid=route().startsWith('a-')?route().slice(2):null;
+  if(ds.set&&aid){const it=ITEM[ds.set];const a=S.assess.find(x=>x.id===aid);const r=answersOf(a)[ds.set]||{};
+    if(it.o.sc){const o=SCALES[it.o.sc].find(x=>x[0]===ds.s);return saveAns(aid,ds.set,r.o===ds.s?{o:'',s:''}:{o:ds.s,s:o[3]})}
+    return saveAns(aid,ds.set,{s:r.s===ds.s?'':ds.s})}
+  if(ds.how){S.openHow={...S.openHow,[ds.how]:!S.openHow[ds.how]};return render()}
+  if(ds.delref){return saveRefs(ds.delref,(S.refs[ds.delref]||[]).filter(p=>p!==ds.p))}
+  if(ds.notebtn){S.openNotes={...(S.openNotes||{}),[ds.notebtn]:1};render();setTimeout(()=>$('#nt-'+ds.notebtn)?.focus(),0);return}
+  if(ds.delph&&aid){const a=S.assess.find(x=>x.id===aid);const r=answersOf(a)[ds.delph]||{};return saveAns(aid,ds.delph,{photos:(r.photos||[]).filter(p=>p!==ds.p)})}
+  if(ds.mkact&&aid)return sheetMakeAction(aid,ds.mkact);
+  if(ds.openact){e.preventDefault();return openAction(ds.openact)}
+  if(ds.complete){const a=S.assess.find(x=>x.id===ds.complete);if(missingOf(a).some(m=>m[1]==='not answered'))return;return sheetSign(a)}
+  if(ds.reopen){try{await S.db.doc('assessments/'+ds.reopen).update({status:'in_progress'});toast('Assessment reopened')}catch(err){toast(dbMsg(err))}return}
+  if(ds.csv)return exportCsv(ds.csv);
+  if(ds.export)return exportPackage(ds.export,t);
+  if(t.id==='editname')return sheetName();
+  if(ds.html)return exportHtml(ds.html,t);
+  if(ds.copylink){const u=APP_URL+'#r-'+ds.copylink;try{await navigator.clipboard.writeText(u);toast('Link copied. Only people with access to the app can open it.')}catch(e){openSheet(`<h2>Report link</h2><p class="muted">Copy this link. Only people with access to the app can open it.</p><input class="search" style="width:100%;border-radius:8px" readonly value="${esc(u)}" onfocus="this.select()"><div class="row" style="justify-content:flex-end;margin-top:12px"><button class="btn" data-close>Close</button></div>`)}return}
+  if(t.id==='saveadm'){const ids=[...new Set(pickers['adm'])];if(ids.length<1||ids.length>3){toast('Choose 1 to 3 validators');return}
+    try{await S.db.doc('config/admins').set({ids,updatedAt:new Date().toISOString()});S.admDirty=false;toast('Validators saved')}catch(err){toast(dbMsg(err))}return}
+  if(ds.editact)return sheetEditAction(ds.editact);
+  if(ds.quickact)return quickAct(ds.quickact);
+  if(ds.pickphoto){S.pick={kind:'ans',aid:route().slice(2),code:ds.pickphoto};$('#gphoto').click();return}
+  if(ds.pickref){S.pick={kind:'ref',code:ds.pickref};$('#gphoto').click();return}
+  if(ds.country){const v=$('#cc-'+ds.country).value;try{localStorage.setItem('wtq_country',v)}catch(e){}try{await S.db.doc('assessments/'+ds.country).update({country:v,countryOk:true,updatedAt:new Date().toISOString()});toast('Country confirmed: '+v)}catch(err){toast(dbMsg(err))}return}
+  if(ds.reopenact){try{await S.db.doc('actions/'+ds.reopenact).update({status:'open',returnNote:'Reopened by a validator',reopenedBy:S.meId,reopenedAt:new Date().toISOString()});toast('Action reopened');closeSheet()}catch(err){toast(dbMsg(err))}return}
+});
+document.addEventListener('mousedown',e=>{if(e.target.matches('[data-bg]'))closeSheet()});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeSheet();document.querySelector('.lightbox')?.remove()}});
+document.addEventListener('change',e=>{if(e.target.id==='docjump'&&e.target.value){document.getElementById('pg-'+e.target.value)?.scrollIntoView({behavior:'smooth'})}});
+document.addEventListener('input',e=>{if(e.target.id==='q'){S.q=e.target.value;const pos=e.target.selectionStart;render();const q=$('#q');if(q){q.focus();q.setSelectionRange(pos,pos)}}});
+document.addEventListener('change',async e=>{
+  const el=e.target;
+  if(el.id==='impfile'&&el.files&&el.files[0]){const f=el.files[0];el.value='';return importPackage(f)}
+  if(el.id&&el.id.startsWith('cc-')){const id=el.id.slice(3),a=S.assess.find(x=>x.id===id);if(a&&a.countryOk){try{await S.db.doc('assessments/'+id).update({country:el.value})}catch(err){toast(dbMsg(err))}}return}
+  if(el.id==='gphoto'){const pk=S.pick,fs=[...el.files];el.value='';S.pick=null;if(!pk||!fs.length)return;
+    if(pk.kind==='ref'){const code=pk.code,k='ref|'+code;S.uploads[k]=(S.uploads[k]||0)+fs.length;render();const ids=await uploadPhotos(fs);S.uploads[k]-=fs.length;if(ids.length)await saveRefs(code,[...(S.refs[code]||[]),...ids]);else render();return}
+    const {aid,code}=pk,k=aid+'|'+code;S.uploads[k]=(S.uploads[k]||0)+fs.length;render();const ids=[];
+    for(const f of fs){const b=await shrink(f);const key='local:'+uid();await LP.put(key,b);ids.push(key)}
+    S.uploads[k]-=fs.length;const a=S.assess.find(x=>x.id===aid),r=answersOf(a)[code]||{};await saveAns(aid,code,{photos:[...(r.photos||[]),...ids]});return}
+  if(el.dataset.ref!=null){const code=el.dataset.ref,fs=[...el.files];el.value='';if(!fs.length)return;const k='ref|'+code;S.uploads[k]=(S.uploads[k]||0)+fs.length;render();
+    const ids=await uploadPhotos(fs);S.uploads[k]-=fs.length;if(ids.length)await saveRefs(code,[...(S.refs[code]||[]),...ids]);else render();return}
+  const aid=route().startsWith('a-')?route().slice(2):null;if(!aid)return;
+  if(el.dataset.note!=null){return saveAns(aid,el.dataset.note,{note:el.value.trim()})}
+  if(el.dataset.fld!=null){return saveAns(aid,el.dataset.code,{[el.dataset.fld]:el.value.trim()})}
+  if(el.dataset.date!=null){const p={d:el.value};if(el.value&&el.value<today()){p.s='nok';toast('Inspection date expired: marked nOK')}return saveAns(aid,el.dataset.date,p)}
+  if(el.dataset.val!=null){const code=el.dataset.val,it=ITEM[code],a=S.assess.find(x=>x.id===aid),r=answersOf(a)[code]||{};
+    const v=[...(r.v||[])];v[+el.dataset.i]=el.value.trim().replace(',','.');const patch={v};
+    const num=parseFloat(v[0]);if(it.o.m.max!=null&&!isNaN(num))patch.s=num>it.o.m.max?'nok':'ok';
+    if(patch.s==='nok')toast(`${num} ${it.o.m.u} is above the ${it.o.m.max} ${it.o.m.u} limit: marked nOK`);
+    return saveAns(aid,code,patch)}
+  if(el.dataset.photo!=null){const code=el.dataset.photo,fs=[...el.files];el.value='';if(!fs.length)return;const k=aid+'|'+code;
+    S.uploads[k]=(S.uploads[k]||0)+fs.length;render();const ids=[];
+    for(const f of fs){const b=await shrink(f);const key='local:'+uid();await LP.put(key,b);ids.push(key)}
+    S.uploads[k]-=fs.length;const a=S.assess.find(x=>x.id===aid),r=answersOf(a)[code]||{};await saveAns(aid,code,{photos:[...(r.photos||[]),...ids]})}
+});
+boot();
+</script>
+
+</body></html>
