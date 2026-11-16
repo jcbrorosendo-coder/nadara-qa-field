@@ -62,7 +62,7 @@
     const W=window.NQA_SWI;if(W){for(const [id,p] of Object.entries(W.map))if(!FIELD_URLS[id])FIELD_URLS[id]=p;
       store['docs/lte']={...W.doc,status:(W.doc.status||'')+' · available offline'};
       const cur=(store['refs/items']&&store['refs/items'].map)||{};const mp={...W.refs.map};for(const [k,v] of Object.entries(cur))mp[k]=[...new Set([...(mp[k]||[]),...v])];store['refs/items']={map:mp,updatedAt:W.refs.updatedAt}}});
-  if('serviceWorker' in navigator&&(location.protocol==='https:'||location.hostname==='localhost'))navigator.serviceWorker.register('sw.js').catch(()=>{});
+  if('serviceWorker' in navigator&&(location.protocol==='https:'||location.hostname==='localhost'))navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).catch(()=>{});
 })();
 </script></head><body>
 <title>Nadara QA Field</title>
@@ -1590,7 +1590,7 @@ function genIdGrid(a,sc){const H=a.hdr||{};const parts=a.parts||[];const cell=(l
    ${parts.flatMap(p=>GEN_FIELDS[p]).filter(([k])=>H[k]).map(([k,l])=>cell(l,k==='lastpm'?fmtD(H[k]):H[k],/hours|wo|plate|start/.test(k))).join('')}</div>`}
 function genMap(sc,a){const P='#720062',c=z=>pctColor(zoneScore(sc,z)),has=pk=>(a.parts||[]).includes(pk);
   const op=pk=>has(pk)?1:.28,ps=pk=>sc.parts[pk]==null?'—':(sc.parts[pk]/5).toFixed(1)+'/20';
-  const blade=g=>`<path d="M50 52 L47 18 Q50 8 53 18 Z" transform="rotate(${g} 50 52)" fill="${c('blades')}" stroke="var(--surface)" stroke-width=".8"/>`;
+  const blade=g=>`<path d="${bladeD(50,52,42)}" transform="rotate(${g} 50 52)" fill="${c('blades')}" stroke="var(--surface)" stroke-width=".8"/>`;
   return `<figure style="margin:0"><svg class="genmap" viewBox="0 0 400 236" role="img" aria-label="Wind farm audit map">
   <rect x="0" y="206" width="400" height="14" rx="3" fill="${c('access')}" opacity="${op('VEH')}"><title>Site access &amp; roads</title></rect>
   <path d="M8 213h384" stroke="#fff" stroke-width="1.4" stroke-dasharray="10 8" opacity=".8"/>
@@ -1622,7 +1622,7 @@ function genMap(sc,a){const P='#720062',c=z=>pctColor(zoneScore(sc,z)),has=pk=>(
   </svg><div class="legend"><span><i style="background:var(--sev1)"></i>≥18</span><span><i style="background:#5aa02c"></i>15–17.9</span><span><i style="background:var(--sev3)"></i>10–14.9</span><span><i style="background:var(--sev4)"></i>&lt;10</span><span><i style="background:var(--na-soft)"></i>not audited</span></div></figure>`}
 function turbine(sc,a){
   const c=z=>pctColor(zoneScore(sc,z)),tr=(a&&a.trafo)||'nacelle',P='#720062';
-  const blade=g=>`<path d="M52 82 L48 20 Q52 6 56 20 Z" transform="rotate(${g} 52 82)" fill="${c('blades')}" stroke="var(--surface)" stroke-width="1"/>`;
+  const blade=g=>`<path d="${bladeD(52,82,70)}" transform="rotate(${g} 52 82)" fill="${c('blades')}" stroke="var(--surface)" stroke-width="1"/>`;
   // pictograms: solid Nadara purple with white symbols (signage style)
   const lift=(x,y)=>`<g><title>Service lift</title><line x1="${x+6}" y1="104" x2="${x+6}" y2="${y}" stroke="${P}" stroke-width=".8" stroke-dasharray="2 1.5"/><rect x="${x}" y="${y}" width="12" height="15" rx="2.2" fill="${P}"/><path d="M${x+6} ${y+2.6}l2.6 3.4h-5.2z M${x+6} ${y+12.4}l2.6 -3.4h-5.2z" fill="#fff"/><line x1="${x+13}" y1="${y+7.5}" x2="90" y2="${y+7.5}" stroke="var(--line)"/><text class="lbl" x="92" y="${y+11}">Service lift</text></g>`;
   const door=(x)=>`<g><title>Tower entrance door</title><rect x="${x}" y="252" width="10" height="16" rx="1.6" fill="${P}"/><rect x="${x+2}" y="254.5" width="6" height="5" rx=".8" fill="#fff" fill-opacity=".35"/><circle cx="${x+7.6}" cy="262" r="1" fill="#fff"/><rect x="${x-2}" y="267" width="14" height="2" rx=".6" fill="${P}"/></g>`;
@@ -1820,10 +1820,13 @@ function quickAct(aid){const box=$('#qa-'+aid);if(!box)return;if(box.innerHTML){
   $('#fqa').onsubmit=async e=>{e.preventDefault();const id=uid();
     try{await S.db.doc('actions/'+id).set({aid,code:'GEN',title:$('#qa-title').value.trim(),desc:'',prio:$('#qa-prio').value,due:$('#qa-due').value||'',assignee:pickers['qa-own'][0]||'',findPhotos:[],status:'open',createdBy:S.meId,createdAt:new Date().toISOString()});toast('Action added')}catch(err){toast(dbMsg(err))}}}
 /* animated hero turbine on the home page */
+/* realistic blade: narrow root, widest chord at ~25% span, slender tip */
+function bladeD(cx,cy,L){const c=L*.085,f=n=>+n.toFixed(2),X=k=>f(cx+k*c),Y=r=>f(cy-r*L);
+  return `M${X(-.26)} ${Y(.05)}L${X(-.3)} ${Y(.14)}Q${X(-.5)} ${Y(.55)} ${X(-.1)} ${Y(.985)}Q${X(0)} ${Y(1.01)} ${X(.12)} ${Y(.985)}Q${X(.45)} ${Y(.62)} ${X(1.02)} ${Y(.27)}Q${X(1.1)} ${Y(.2)} ${X(.34)} ${Y(.15)}L${X(.26)} ${Y(.05)}Z`}
 function heroTurbine(){const P='#720062';
-  const blade=g=>`<path d="M100 70 L95 8 Q100 -4 105 8 Z" transform="rotate(${g} 100 70)" fill="#ffffff" stroke="${P}" stroke-width="1.4"/>`;
+  const blade=g=>`<path d="${bladeD(100,70,64)}" transform="rotate(${g} 100 70)" fill="url(#htb)" stroke="${P}" stroke-width="1.2" stroke-linejoin="round"/>`;
   return `<svg class="hero-turb" viewBox="0 0 200 230" role="img" aria-label="Nadara wind turbine">
-   <defs><linearGradient id="htw" x1="0" x2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#e9e2e8"/></linearGradient></defs>
+   <defs><linearGradient id="htw" x1="0" x2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#e9e2e8"/></linearGradient><linearGradient id="htb" x1="0" x2="1"><stop offset="0" stop-color="#ffffff"/><stop offset=".6" stop-color="#ffffff"/><stop offset="1" stop-color="#e6dbe4"/></linearGradient></defs>
    <path d="M0 222 Q 60 206 120 214 T 200 210 V230 H0z" fill="var(--nad-soft)"/>
    <path d="M125 80 L135 80 L142 220 L118 220 Z" fill="url(#htw)" stroke="${P}" stroke-width="1.2"/>
    <rect x="126" y="207" width="8" height="13" rx="1.2" fill="${P}"/>
