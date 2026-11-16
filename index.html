@@ -166,6 +166,45 @@ main{max-width:1080px;margin:0 auto;padding-block:20px 40px;padding-left:max(16p
 .pill.warn{background:var(--warn-soft);color:var(--warn)} .pill.na{background:var(--na-soft);color:var(--na)}
 .pill.nad{background:var(--nad-soft);color:var(--nad)}
 .grade{font:700 13px/1 var(--f-head);width:26px;height:26px;border-radius:7px;display:inline-grid;place-items:center;color:#fff}
+.pdfwrap{position:absolute;left:0;top:0;width:820px;z-index:-5;pointer-events:none}
+.pdfbusy{position:fixed;inset:0;z-index:999;background:var(--bg);display:grid;place-items:center;text-align:center}
+.pdfbusy>div{display:flex;flex-direction:column;align-items:center;gap:8px;padding:20px}
+.spin{width:36px;height:36px;border-radius:50%;border:4px solid var(--nad-soft);border-top-color:var(--nad);animation:spin 1s linear infinite}
+.pdfdoc{box-shadow:none;border-radius:0;border:0} .pdfdoc .rsec{break-inside:avoid}
+.blankrow{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:14px;padding-top:12px;border-top:1px solid var(--line)} .blankrow .chip{display:inline-flex;align-items:center;gap:4px}
+.bf-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px 16px}
+.bf-field{display:flex;flex-direction:column;border-bottom:1px solid var(--fg);min-height:38px;padding-bottom:3px} .bf-field span{font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)} .bf-field b{font-weight:500;font-size:13px}
+.bf-legend{margin-top:12px;font-size:11.5px;color:var(--muted);background:var(--nad-soft);border-radius:8px;padding:8px 10px}
+.bf-part{display:flex;align-items:center;gap:10px;background:var(--nad-soft);font-size:15px;margin:-18px -20px 14px;padding:12px 20px} .bf-part .muted{margin-left:auto;font-size:12px}
+.bf-sec h2{font-size:15px;margin-bottom:6px} .bf-sec .mono{color:var(--nad)}
+.bf-row{display:grid;grid-template-columns:62px minmax(0,1fr) 250px;gap:10px;padding:7px 0;border-top:1px solid var(--line);font-size:12.5px;line-height:1.35;background:var(--surface)}
+.bf-hint{font-size:11px;color:var(--muted);margin-top:2px} .bf-note{margin-top:8px;border-bottom:1px dotted var(--muted);height:14px;font-size:10px;color:var(--muted)}
+.bf-ans{display:flex;flex-wrap:wrap;gap:4px 8px;align-content:flex-start} .bf-box{display:inline-flex;align-items:center;gap:3px;font-size:11px;white-space:nowrap} .bf-box i{width:12px;height:12px;border:1.4px solid var(--fg);border-radius:2px;display:inline-block}
+.bf-act{display:grid;grid-template-columns:60px 1fr 140px 90px;font-size:11px;color:var(--muted)} .bf-act span{padding:4px;border-bottom:1.4px solid var(--fg)} .bf-act i{height:26px;border-bottom:1px solid var(--line)}
+.scorebox.gen{grid-template-columns:auto minmax(0,1fr)} .scorebox.gen>figure{grid-column:1/-1;order:-1} .scorebox.gen .genmap{max-width:640px}
+@media (max-width:860px){.scorebox.gen{grid-template-columns:minmax(0,1fr)}}
+.ppick input[type=checkbox]{flex:0 0 20px;width:20px;height:20px;min-height:0;padding:0;appearance:auto;-webkit-appearance:checkbox}
+.g-E{background:#a3001b}
+.tplb.tpl-GEN{background:linear-gradient(90deg,#720062,#a3348f);color:#fff}
+.sbadge{display:inline-grid;place-items:center;min-width:18px;height:18px;padding:0 4px;border-radius:5px;background:var(--nok);color:#fff;font:700 11px var(--f-body);vertical-align:1px;margin-left:4px}
+.seg.n6{grid-template-columns:repeat(3,1fr)} @media (max-width:560px){.seg.n6{grid-template-columns:repeat(2,1fr)}}
+.seg button.k-ok{--kc:var(--sev1)} .seg button.k-acc{--kc:#5aa02c} .seg button.k-med{--kc:#e5b000} .seg button.k-high{--kc:var(--sev3)} .seg button.k-imm{--kc:var(--sev4)} .seg button.k-na{--kc:var(--na)}
+.seg.n6 button{border-left:4px solid var(--kc)}
+.seg.n6 button[aria-pressed="true"]{background:var(--kc)!important;border-color:var(--kc)!important;color:#fff!important}
+.partban{display:flex;align-items:center;gap:12px;margin:26px 0 6px;padding:14px 16px;border-radius:14px;background:linear-gradient(110deg,var(--nad-soft),transparent);border:1px solid var(--line)}
+.partban h2{font-size:20px}
+.partscore{margin-left:auto;display:flex;align-items:baseline;gap:2px;padding:6px 12px;border-radius:12px;background:var(--surface);box-shadow:inset 0 -4px 0 var(--c)}
+.partscore b{font:700 22px var(--f-mono)} .partscore span{font-size:12px;color:var(--muted)}
+.mins{background:var(--nad-soft);color:var(--nad);border-radius:6px;padding:1px 7px;font-size:12px}
+.genhead{margin-top:14px} .genhead .chip{display:inline-flex;align-items:center;gap:6px}
+.partpick{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px} @media (max-width:560px){.partpick{grid-template-columns:1fr}}
+.ppick{display:flex;align-items:center;gap:10px;padding:10px;border:1px solid var(--line);border-radius:12px;cursor:pointer;background:var(--surface-2)}
+.ppick:has(input:checked){border-color:var(--nad);box-shadow:inset 0 0 0 1px var(--nad)} .ppick input{width:18px;height:18px;accent-color:var(--nad);margin:0}
+.ppick span{display:flex;flex-direction:column;min-width:0} .ppick b{font-weight:500}
+.genmap{width:100%;max-width:440px;margin:auto;display:block} .genmap .lbl{fill:var(--muted);font:9px var(--f-body)}
+@media (prefers-reduced-motion:no-preference){.grot{animation:spin 9s linear infinite;transform-origin:50px 52px}}
+.barpart{font:500 12px var(--f-body);color:var(--nad);margin:10px 0 2px;display:flex;justify-content:space-between;text-transform:uppercase;letter-spacing:.04em} .barpart b{font-family:var(--f-mono)}
+.certline{font-size:13px;font-weight:500;padding:4px 10px;border-radius:999px} .certline.pass{background:var(--ok-soft);color:var(--ok)} .certline.fail{background:var(--nok-soft);color:var(--nok)}
 .g-A{background:var(--sev1)} .g-B{background:#5aa02c} .g-C{background:var(--sev3)} .g-D{background:var(--sev4)} .g-x{background:var(--na)}
 .ring{position:relative;width:64px;height:64px;flex:none}
 .ring svg{width:100%;height:100%;transform:rotate(-90deg)}
@@ -806,11 +845,207 @@ const SS_SECTIONS=[
 ];
 const SS_W={B01:15,B02:15,B03:15,B04:10,B05:15,B06:10,B07:10,B08:5,B09:5};
 
+// General O&M Quality Audit (from the 8-hour field audit sheets) — English. o.s = safety-critical item, h = evaluation criterion.
+SCALES.audit=[['ok','1 · Conforming',1,'ok'],['acc','2 · Acceptable',.75,'imp'],['med','3 · Medium priority',.5,'imp'],['high','4 · High priority',.25,'nok'],['imm','5 · Immediate action',0,'nok'],['na','N/A',null,'na']];
+const GEN_PARTS=[['WTG','Sheet 1 — Wind turbine (WTG) · 4 h'],['BOP','Sheet 2 — Balance of plant: substation, MV network and roads · 1 h 45'],['WH','Sheet 3 — Warehouse, waste centre and office · 1 h'],['VEH','Sheet 4 — Service vehicles, PPE and site access · 55 min']];
+const GEN_FIELDS={
+ WTG:[['start','Start time'],['escort','Escort (local technician)'],['reason','Reason for selection'],['wo','Audit work order no.'],['lastpm','Last preventive maintenance (date)'],['hours','Operating hours']],
+ BOP:[['subst','Substation (voltage level)'],['sample','Sample WTGs (3 IDs)']],
+ WH:[['invrefs','Inventory references checked'],['tools','Tools checked (no.)']],
+ VEH:[['plate1','Vehicle 1 plate'],['plate2','Vehicle 2 plate'],['tech1','Technician 1 (PPE)'],['tech2','Technician 2 (PPE)']]};
+const _g=(ref,text,s,crit)=>['G'+ref,text,1,{sc:'audit',...(s?{s:1,p:'nok'}:{}),...(crit?{h:crit}:{}),ref}];
+const GEN_SECTIONS=[
+ {id:'A0',part:'WTG',zone:'nacelle',min:20,t:'Preparation, work safety and controller / SCADA',items:[
+  _g('001','Work permit issued and LOTO applied per procedure; isolation points identified and locked.',1,'Conforming: isolations verified with absence-of-voltage test and signed record. Immediate action: work without isolation / record.'),
+  _g('002','Rescue and evacuation plan available; team with valid GWO (BST) training and electrical authorisation.',1,'Check the cards / records of both technicians. Any expired training = Immediate action.'),
+  _g('003','Active and recurring alarms / warnings (last 30 days) analysed in SCADA; each recurrence has an open work order.',0,'Recurrence without work order = Medium priority; safety alarm ignored = High priority.'),
+  _g('004','Software version and parameters match the fleet reference; no unrecorded bypass or forcing.',1,'Active unrecorded bypass / forcing = Immediate action.'),
+  _g('005','Availability and power curve (last 3 months) as expected for the site.',0,'Compare with the wind farm average. Unexplained deviation > 3% = Medium priority.'),
+  _g('006','Turbine logbook / maintenance history complete; last preventive maintenance within the plan.',0,'Preventive maintenance overdue > 1 month = High priority.')]},
+ {id:'A1',part:'WTG',zone:'foundation',min:30,t:'Outside platform, foundation and tower base',items:[
+  _g('101','Tower access and platform clean, no debris or spills; drainage working.'),
+  _g('102','Foundation and concrete: cracks, erosion, tower–foundation joint sealing.',0,'Cracks with water / rust = High priority.'),
+  _g('103','Outside stairs and guard rails firmly fixed, no corrosion.',1,'Loose guard rail = Immediate action.'),
+  _g('104','Tower door: alignment, seal, lock, air filter and danger signage.'),
+  _g('105','Turbine MV switchgear: SF6 pressure indicator, voltage presence indicators, interlocks, signage.',1,'SF6 in red zone or interlock not working = Immediate action.'),
+  _g('106','Transformer (pad-mount / base / nacelle): leaks, oil level, maximum temperatures, access closed.',1,'Active leak or access not closed = Immediate action.'),
+  _g('107','Base cabinets (control, UPS, distribution): cleanliness, locks, wiring, no arc or heating marks.'),
+  _g('108','Earthing connections and equipotential bar: tight, unpainted contact surface, no corrosion.',1,'Loose / cut connection = Immediate action.'),
+  _g('109','Foundation bolts / anchor ring: no signs of movement, corrosion protection, torque marking.'),
+  _g('110','Base fire extinguishers and fire detection with valid inspection; first-aid kit complete.',1),
+  _g('111','Base dehumidifier / ventilation working, filters clean.'),
+  _g('112','General cleanliness and housekeeping of the tower base.')]},
+ {id:'A2',part:'WTG',zone:'tower',min:30,t:'Tower and climb',items:[
+  _g('201','Ladder: rungs, brackets and bolts; valid inspection label.',1),
+  _g('202','Lifeline / fall-arrest rail: fixing, joints, compatible and inspected runner.',1,'Play in a joint or missing fixing = Immediate action.'),
+  _g('203','Service lift / climb assist: inspection label, function test, emergency descent.',1,'Lift in use with expired inspection = Immediate action.'),
+  _g('204','Platform hatches and trapdoors close and work correctly.',1),
+  _g('205','Flange bolts: torque marking, no movement, correct washers, last retorque recorded.',0,'Misaligned torque mark = High priority.'),
+  _g('206','Corrosion protection on flanges / bolts; no water ingress.'),
+  _g('207','Normal and emergency tower lighting working; sockets in good condition.',1),
+  _g('208','Power and control cables in the tower: fixing, clamps, no chafing, edge protection.'),
+  _g('209','Inside paint and corrosion on platforms and structure.'),
+  _g('210','Platforms clean: no oil, forgotten tools or waste.')]},
+ {id:'A3',part:'WTG',zone:'yaw',min:20,t:'Yaw deck and yaw system',items:[
+  _g('301','Yaw deck clean; no grease or metal-chip build-up.'),
+  _g('302','Cable loop (drip loop): no excessive twist or chafing, saddle / support OK; twist counter consistent.'),
+  _g('303','Yaw ring: lubrication of teeth and raceway; automatic lubrication working.'),
+  _g('304','Yaw gear motors: oil level, leaks, abnormal noise turning CW / CCW.'),
+  _g('305','Yaw brakes / pads: wear, pressure (if hydraulic), brake dust.'),
+  _g('306','Position sensors / twist limit switches fixed and adjusted.')]},
+ {id:'A4',part:'WTG',zone:'nacelle',min:30,t:'Drivetrain: main shaft and gearbox',items:[
+  _g('401','Main bearing: grease leaks at the seals, automatic lubrication, grease collector.'),
+  _g('402','Rotor lock: operation, pins and sensors in good condition.',1,'Rotor lock not working = Immediate action.'),
+  _g('403','Gearbox: oil level and appearance in the sight glass.'),
+  _g('404','Gearbox: leaks at hoses, gaskets, unions and covers.'),
+  _g('405','Oil filters (inline / offline): clogging indicator, change date; breather / dehumidifier.'),
+  _g('406','Magnetic plug / particle sensor: presence of debris.',0,'Visible metal chips = High priority (request oil analysis and CMS review).'),
+  _g('407','Abnormal noise / vibration in rotation; CMS trend reviewed.'),
+  _g('408','Gearbox elastic supports / torque arms: cracks, deformation.'),
+  _g('409','High-speed shaft mechanical brake: disc, pads, wear, dust.',1)]},
+ {id:'A5',part:'WTG',zone:'nacelle',min:15,t:'Generator and coupling',items:[
+  _g('501','Generator bearing lubrication (pump, pipes, collector).'),
+  _g('502','Slip-ring / brush chamber: cleanliness, brush wear, carbon dust, filter.'),
+  _g('503','Coupling (composite / laminated): cracks, bolts.',0,'Large cracks = Medium priority; with high bearing temperature = High priority.'),
+  _g('504','Generator–gearbox alignment: last measurement recorded within tolerance.',0,'Misalignment ~0.5 cm = Medium priority; ≥ 1 cm = Immediate action.'),
+  _g('505','Generator terminal box and power connections: no signs of heating.')]},
+ {id:'A6',part:'WTG',zone:'nacelle',min:15,t:'Hydraulics, brakes and cooling',items:[
+  _g('601','Hydraulic unit: level, leaks, working pressure.'),
+  _g('602','Accumulators: pre-charge checked within the interval; no damage.'),
+  _g('603','Cooling (water / glycol): level, leaks, radiator clean, pumps.'),
+  _g('604','Nacelle and converter fans and filters clean and working.')]},
+ {id:'A7',part:'WTG',zone:'nacelle',min:30,t:'Nacelle: electrical, converter and safety equipment',items:[
+  _g('701','Nacelle control cabinet: cleanliness, connections, locks, no arc marks.'),
+  _g('702','Power converter: filters, coolant leaks, thermal marks, doors closed / interlocked.',1),
+  _g('703','Thermal relay / protection settings (sample) as per diagram.'),
+  _g('704','Emergency stop buttons: function test.',1,'Any button not working = Immediate action.'),
+  _g('705','Service crane: inspection label, limiters, chain / rope lubricated.',1),
+  _g('706','Rescue / descent kit: present, sealed, valid inspection.',1),
+  _g('707','Nacelle fire extinguishers with valid inspection.',1),
+  _g('708','Inside anchor points identified and certified.',1),
+  _g('709','Nacelle structure and cover: cracks, water ingress, hatches, seals, missing bolts.'),
+  _g('710','Normal and emergency nacelle lighting.',1),
+  _g('711','General cleanliness: oil, grease, loose parts, forgotten tools.')]},
+ {id:'A8',part:'WTG',zone:'nacelle',min:10,t:'Nacelle roof (only if the weather allows)',items:[
+  _g('801','Met sensors (anemometer, wind vane / ultrasonic): fixing, condition, alignment.'),
+  _g('802','Aviation obstruction lights working.'),
+  _g('803','Outside anchor points and guard rails.',1),
+  _g('804','Lightning air terminal and down-conductor connections.')]},
+ {id:'A9',part:'WTG',zone:['hub','blades'],min:30,t:'Hub, pitch and blades',items:[
+  _g('901','Hub entry: rotor locked, blades in safe position, communication with the nacelle.',1,'Entry without rotor lock = Immediate action.'),
+  _g('902','Spinner / nose cone: cracks, fixings.'),
+  _g('903','Pitch cabinets: connections, cleanliness, no arc marks.'),
+  _g('904','Pitch batteries / ultracapacitors: test / replacement date, no swelling or leaks.',1,'Expired or swollen battery = Immediate action (safe shutdown).'),
+  _g('905','Pitch motors and gears (or cylinders, if hydraulic): leaks, noise.'),
+  _g('906','Blade bearings: lubrication, grease leaks, collectors.'),
+  _g('907','Blade bolts: torque marking, no cracks.'),
+  _g('908','Pitch limit switches and encoders.'),
+  _g('909','Inside of the blades (visual from the hub): cracks, debris, lightning conductor.'),
+  _g('910','Lightning current transfer (LCTU / brushes / spark gap).'),
+  _g('911','Blade exterior (from the ground, nacelle or drone): leading edge erosion, damage.'),
+  _g('912','General cleanliness of the hub.')]},
+ {id:'A10',part:'WTG',zone:'nacelle',min:10,t:'Closing the intervention',items:[
+  _g('1001','Turbine returned to service without alarms; LOTO removed and recorded.',1),
+  _g('1002','Turbine logbook updated; tools and waste removed.')]},
+ {id:'B1',part:'BOP',zone:'yard',min:30,t:'Substation: HV yard (outside)',items:[
+  _g('B101','Perimeter fence, gates and padlocks; electrical danger signage.',1,'Open / damaged fence = Immediate action.'),
+  _g('B102','Gravel, vegetation control, drainage; no waste.'),
+  _g('B103','Power transformer: leaks, conservator level, silica gel, maximum temperatures, noise.'),
+  _g('B104','Oil retention pit / separator: clean, no accumulated water or oil, valve closed.',0,'Full pit = High priority.'),
+  _g('B105','HV circuit breakers: SF6 pressure, operation counter, control cabinets closed and dry.'),
+  _g('B106','Disconnectors: insulator condition, interlocks, padlock locking.',1),
+  _g('B107','Instrument transformers and surge arresters (counters).'),
+  _g('B108','Earthing grid: visible connections present, no theft or corrosion.',1,'Missing connection = Immediate action.'),
+  _g('B109','Gantries and structures: corrosion, foundations, bolts.'),
+  _g('B110','Outside lighting and CCTV working.'),
+  _g('B111','Thermography and HV maintenance within the plan (records).')]},
+ {id:'B2',part:'BOP',zone:'ssbuild',min:25,t:'Substation building: MV, auxiliary services, collective protective equipment',items:[
+  _g('B201','MV switchgear: voltage presence indicators, SF6, interlocks, signage.',1),
+  _g('B202','Incoming MV cables: terminations without discharge marks, cable trenches covered.'),
+  _g('B203','Auxiliary services transformer and LV boards.'),
+  _g('B204','Battery room / rectifier: voltage, ventilation, eyewash, signage, no leaks.',1),
+  _g('B205','Emergency generator / UPS: last test recorded, fuel, retention tray.'),
+  _g('B206','Protections / relays: no active alarms, periodic tests recorded.'),
+  _g('B207','Collective protective equipment: insulating mat, operating pole, voltage detector, earthing kit — valid tests.',1,'Equipment with expired test = Immediate action.'),
+  _g('B208','Insulating gloves of the right class with valid dielectric test.',1),
+  _g('B209','Arc-flash equipment (suit / visor) rated for the energy level.',1),
+  _g('B210','Fire detection, CO2 extinguishers, emergency lighting, exits clear.',1),
+  _g('B211','Clean; no stored material; cable passages sealed (rodents, water).')]},
+ {id:'B3',part:'BOP',zone:'control',min:15,t:'Control room and documentation',items:[
+  _g('B301','SCADA / HMI working; alarms acknowledged and handled.'),
+  _g('B302','Up-to-date single-line diagram displayed; switching procedures and emergency plan available.',1),
+  _g('B303','Switching log / substation logbook up to date.'),
+  _g('B304','Key board and LOTO: padlocks, record of active isolations consistent with the field.',1),
+  _g('B305','Emergency and grid operator contacts displayed; communications working.')]},
+ {id:'B4',part:'BOP',zone:'mv',min:35,t:'MV network, WTG switchgear and roads (sample of 3 turbines)',items:[
+  _g('B401','MV switchgear of the sampled turbines: SF6, indicators, interlocks, signage.',1,'Record the 3 WTG IDs in the comment; evaluate by the worst case.'),
+  _g('B402','Visible MV cable terminations: no tracking or heating (thermography if available).'),
+  _g('B403','Visible cables (tower entry, trenches, transitions): mechanical protection, no damage.'),
+  _g('B404','Buried cable routes and junction boxes marked; no unauthorised excavation.'),
+  _g('B405','Switching stations / distribution cabinets (if any): closed and signed.',1),
+  _g('B406','Fibre optic and communication boxes protected.'),
+  _g('B407','WTG platforms and roads: surface, drainage, ditches.'),
+  _g('B408','Safety signage on roads and platforms (speed, ice, falling objects).')]},
+ {id:'C1',part:'WH',zone:'wh',min:30,t:'Warehouse',items:[
+  _g('C101','5S organisation: marked zones, clear aisles, location identification.'),
+  _g('C102','Inventory: 5 random references match the system (quantity and location).',0,'1 discrepancy = Medium priority; ≥ 3 = High priority.'),
+  _g('C103','Critical / strategic spare parts available per the defined minimum stock.'),
+  _g('C104','Large components protected from the weather, on pallets, with preservation (e.g. bearing rotation).'),
+  _g('C105','Chemicals: safety data sheets available, ventilated cabinet, retention tray, compatibility.',1),
+  _g('C106','Oils and greases: stored on retention, identified, spill kit nearby.'),
+  _g('C107','Calibrated tools (torque wrenches, tensioners, multimeters): 5 at random with valid calibration.',0,'Expired torque tool in use = High priority.'),
+  _g('C108','Lifting accessories (slings, shackles, chains): identification and valid periodic inspection.',1),
+  _g('C109','PPE and fall-arrest equipment in stock: dry / UV-protected storage, record by serial number.',1),
+  _g('C110','Forklift / pallet truck / lifting equipment: valid inspection, authorised operator.',1),
+  _g('C111','Racks: fixing, maximum load displayed, no damage.',1),
+  _g('C112','Fire extinguishers, emergency exits, lighting and first aid.',1),
+  _g('C113','Receiving: defined area, goods-in record, non-conforming material in quarantine.'),
+  _g('C114','Repairable / defective parts identified (tag) with return / repair flow.')]},
+ {id:'C2',part:'WH',zone:'waste',min:15,t:'Waste centre',items:[
+  _g('C201','Containers identified by waste code; correct separation.'),
+  _g('C202','Hazardous waste (oils, filters, rags, batteries) in a covered area with retention.',1),
+  _g('C203','Electronic waste transfer records / collection records up to date; licensed operators.'),
+  _g('C204','Collection frequency adequate; no storage beyond the legal period.'),
+  _g('C205','Spill kit available and complete.')]},
+ {id:'C3',part:'WH',zone:'office',min:15,t:'Office and welfare facilities (if any)',items:[
+  _g('C301','Welfare facilities clean: changing rooms, canteen, drinking water.'),
+  _g('C302','Displayed: emergency plan, contacts, risk assessment, HSEQ policy.'),
+  _g('C303','Technical documentation accessible and version-controlled.'),
+  _g('C304','Workstation order and ergonomics; cables organised.'),
+  _g('C305','Building electrical board closed, identified, RCD tested.',1)]},
+ {id:'D1',part:'VEH',zone:'veh',min:25,t:'Service vehicles (sample of 2 vehicles)',items:[
+  _g('D101','Documentation: insurance, periodic inspection, vehicle registration document, accident report form.',0,'Record the plates in the comment; evaluate by the worst case.'),
+  _g('D102','Vehicle maintenance plan up to date (service, km).'),
+  _g('D103','Tyres, lights, brakes, windscreen, fluid levels.',1),
+  _g('D104','Cleanliness and order of the cab and cargo area.'),
+  _g('D105','Load secured: straps, partitions; no loose objects in the cab.',1),
+  _g('D106','Fire extinguisher, warning triangle, high-visibility vest and first-aid kit valid.',1),
+  _g('D107','Spill kit in the vehicle.'),
+  _g('D108','Rescue and work-at-height equipment carried dry and protected.'),
+  _g('D109','Tools and measuring instruments: valid calibration, 1000 V insulation intact.',1),
+  _g('D110','Chemicals in suitable packaging, limited quantity, safety data sheets on board.'),
+  _g('D111','Communications (radio / mobile) and AED available on site or in the vehicle.'),
+  _g('D112','Suitable for the terrain (4x4, beacon, towing) and driving / fuel log.')]},
+ {id:'D2',part:'VEH',zone:'ppe',min:15,t:'Team PPE (sample of 2 technicians)',items:[
+  _g('D201','Harness, absorber and lanyards: valid periodic inspection (≤ 12 months) and record by serial number.',1,'Expired fall-arrest PPE = Immediate action.'),
+  _g('D202','Helmet with chin strap, glasses, mechanical gloves, hearing protection.'),
+  _g('D203','Protective footwear and clothing (flame-retardant / antistatic where required).',1),
+  _g('D204','Insulating gloves, personal voltage detector and arc-flash PPE for electrical work.',1),
+  _g('D205','Valid certifications (GWO BST / BTT, electrical authorisation, first aid).',1)]},
+ {id:'D3',part:'VEH',zone:'access',min:15,t:'Site access and deliveries',items:[
+  _g('D301','Access roads: surface, ditches, drainage, vegetation.'),
+  _g('D302','Signage, speed limits, gates / barriers and access control.'),
+  _g('D303','Assembly point and emergency routes marked; access for ambulance / fire brigade.',1),
+  _g('D304','Deliveries: defined receiving point, record, escort of external carriers.'),
+  _g('D305','Safe unloading area, suitable surface, handling means available.'),
+  _g('D306','Visitor / subcontractor control: record and safety induction.',1)]},
+];
+
 const COUNTRIES=['Portugal','Spain','France','Italy','United Kingdom','Germany','Belgium','Sweden','Norway','Finland','Other'];
 const lastCountry=()=>{try{return localStorage.getItem('wtq_country')||'Portugal'}catch(e){return 'Portugal'}};
 const countryField=()=>`<label class="field"><span>Country</span><select id="n-country" required>${COUNTRIES.map(c=>`<option ${c===lastCountry()?'selected':''}>${c}</option>`).join('')}</select></label>`;
 const TPL={
- WTQCIA:{k:'WTQCIA',name:'Wind Turbine Quality & Continuous Improvement Assessment',short:'Quality & CI',tag:'WTQCIA',sections:WTQ_SECTIONS,
+ WTQCIA:{k:'WTQCIA',name:'Wind Turbine Quality & Continuous Improvement Assessment',short:'Quality & CI',tag:'Turbine_quality',lab:'Turbine quality',sections:WTQ_SECTIONS,
   types:[
    ['GE',['GE1.5','GE2.5','GE 3 MW']],
    ['Ecotècnia / Alstom',['ECO 74','ECO 80','ECO 100']],
@@ -825,16 +1060,25 @@ const TPL={
    ['Bonus',['Bonus B44 – 600 kW','Bonus B54 – 1 MW','Bonus B62 – 1.3 MW','Bonus B76 – 2 MW','Bonus B82 – 2.3 MW']],
    ['Other',['Other']]],
   blurb:'Field quality walk-down for any turbine type: safety equipment, housekeeping, work quality after maintenance, environment and improvement ideas.'},
- SVSC:{k:'SVSC',name:'Service Vehicle Safety & Condition Check',short:'Vehicle check',tag:'SVSC',sections:SVC_SECTIONS,vehicle:true,
+ SVSC:{k:'SVSC',name:'Service Vehicle Safety & Condition Check',short:'Vehicle check',tag:'Vehicle_check',lab:'Vehicle check',sections:SVC_SECTIONS,vehicle:true,
   blurb:'Monthly check of service vans and cars: documents, fluids, tyres, safety and first-aid equipment, PPE, tools, cargo area lighting and driver feedback.'},
- WOQCIA:{k:'WOQCIA',name:'Warehouse Operational Quality & Continuous Improvement Assessment',short:'Warehouse',tag:'WOQCIA',sections:WH_SECTIONS,secW:WH_W,site:'warehouse',improve:true,
+ WOQCIA:{k:'WOQCIA',name:'Warehouse Operational Quality & Continuous Improvement Assessment',short:'Warehouse',tag:'Warehouse',lab:'Warehouse',sections:WH_SECTIONS,secW:WH_W,site:'warehouse',improve:true,
   blurb:'Defined areas, racking, identification and traceability, material flows, tools and calibration, handling means, office, welfare, lighting and cleanliness.'},
- SWQCIA:{k:'SWQCIA',name:'Substation Workplace Quality & Continuous Improvement Assessment',short:'Substation',tag:'SWQCIA',sections:SS_SECTIONS,secW:SS_W,site:'substation',improve:true,
+ SWQCIA:{k:'SWQCIA',name:'Substation Workplace Quality & Continuous Improvement Assessment',short:'Substation',tag:'Substation',lab:'Substation',sections:SS_SECTIONS,secW:SS_W,site:'substation',improve:true,
   blurb:'Remote substation: use of space, office and workstation (noise, lighting, desk, chair), electrical area interface, limited storage, waste points and site readiness.'},
- LEA:{k:'LEA',name:'Lifetime Extension Assessment',short:'Lifetime extension',tag:'LEA',sections:LEA_SECTIONS,mk:true,doc:'lte',
+ GEN:{k:'GEN',name:'General O&M Quality Audit',short:'General audit',tag:'General_audit',lab:'General audit',sections:GEN_SECTIONS,parts:GEN_PARTS,gen:true,
+  blurb:'8-hour field audit of a wind farm in four sheets: one turbine top to bottom, substation and MV network, warehouse and waste centre, vehicles, PPE and site access. Pick the sheets you need.'},
+ LEA:{k:'LEA',name:'Lifetime Extension Assessment',short:'Lifetime extension',tag:'Lifetime_extension',lab:'Lifetime extension',sections:LEA_SECTIONS,mk:true,doc:'lte',
   types:['V80-1.8 MW','V80-2.0 MW','V90-1.8 MW','V90-2.0 MW'],
   blurb:'Structural inspection for lifetime extension of Vestas V80 & V90 1.8/2.0 MW (Mk 1–5): foundation, tower, base frame, drivetrain, hub, pitch and blades.'}};
 const tplOf=a=>TPL[(a&&a.tpl)||'LEA']||TPL.LEA;
+const secsOf=a=>{const T=tplOf(a);return T.parts&&a&&Array.isArray(a.parts)&&a.parts.length?T.sections.filter(x=>a.parts.includes(x.part)):T.sections};
+const itemsOf=a=>secsOf(a).flatMap(x=>x.items.map(y=>ITEM[y[0]]));
+const zoneHas=(sec,z)=>[].concat(sec.zone).includes(z);
+const GEN_GRADE={A:'Good',B:'Acceptable',C:'Medium',D:'Poor',E:'Critical'};
+function gradeGen(p,critS){if(p==null)return{g:'x',t:'Not scored'};const v=p/5;
+  let g=v>=18?'A':v>=14?'B':v>=8?'C':v>=4?'D':'E';if(critS)g='E';
+  return {g,t:GEN_GRADE[g]+(critS?' – safety item needs immediate action':''),s20:v,pass:v>=14&&!critS}}
 const PRIOS=['Low','Medium','High','Critical'];
 const ITEM={};for(const T of Object.values(TPL)){T.items=[];T.sections.forEach(s=>s.items.forEach(a=>{const it={code:a[0],text:a[1],w:a[2],o:a[3]||{},sec:s,tpl:T.k};T.items.push(it);ITEM[it.code]=it}))}
 
@@ -868,23 +1112,25 @@ const ICON={
 const optOf=(it,r)=>{const sc=it.o.sc&&SCALES[it.o.sc];return sc&&r&&r.o?sc.find(o=>o[0]===r.o):null};
 function ansVal(it,r){if(!r||!r.s||r.s==='na')return null;const o=optOf(it,r);if(o)return o[2];return r.s==='ok'?1:r.s==='nok'?0:r.s==='imp'?.5:r.s==='meas'?.33:null}
 function scoreOf(a){
-  const T=tplOf(a),ans=answersOf(a);let num=0,den=0,done=0,nok=0,crit=0,imp=0;const secs={};
-  for(const s of T.sections){let sn=0,sd=0,sdone=0,snok=0;
+  const T=tplOf(a),ans=answersOf(a),SL=secsOf(a);let num=0,den=0,done=0,nok=0,crit=0,imp=0,critS=0,total=0;const secs={};
+  for(const s of SL){let sn=0,sd=0,sdone=0,snok=0;total+=s.items.length;
     for(const a2 of s.items){const it=ITEM[a2[0]];const r=ans[it.code];
       if(r&&r.s){sdone++;done++;if(r.s==='imp'||r.s==='meas')imp++}
+      if(r&&r.o==='imm'&&it.o.s)critS++;
       const v=ansVal(it,r);if(v==null||it.o.t==='info')continue;
       sd+=it.w;den+=it.w;sn+=it.w*v;num+=it.w*v;
-      if(r.s==='nok'){snok++;nok++;if(it.w===3)crit++}}
+      if(r.s==='nok'){snok++;nok++;if(it.w===3||(T.gen&&it.o.s))crit++}}
     secs[s.id]={pct:sd?sn/sd*100:null,done:sdone,count:s.items.length,nok:snok};}
   let pct=den?num/den*100:null;
-  if(T.secW){let n=0,d=0;for(const sec of T.sections){const x=secs[sec.id];if(x.pct!=null){n+=T.secW[sec.id]*x.pct;d+=T.secW[sec.id]}}pct=d?n/d:null}
-  return {pct,done,total:T.items.length,nok,crit,imp,secs,grade:gradeOf(pct,crit),T};
+  if(T.secW){let n=0,d=0;for(const sec of SL){const x=secs[sec.id];if(x.pct!=null){n+=T.secW[sec.id]*x.pct;d+=T.secW[sec.id]}}pct=d?n/d:null}
+  const parts={};if(T.parts)for(const [pk] of T.parts){let n=0,d=0;for(const sec of SL){if(sec.part!==pk)continue;for(const a2 of sec.items){const it=ITEM[a2[0]],v=ansVal(it,ans[it.code]);if(v!=null){n+=v;d++}}}parts[pk]=d?n/d*100:null}
+  return {pct,done,total,nok,crit,critS,imp,secs,parts,secList:SL,grade:T.gen?gradeGen(pct,critS):gradeOf(pct,crit),T};
 }
 function gradeOf(p,crit){if(p==null)return{g:'x',t:'Not scored'};
   let g=p>=90?'A':p>=75?'B':p>=50?'C':'D';if(crit>0&&(g==='A'||g==='B'))g='C';
   return {g,t:{A:'Fit for extended operation',B:'Fit – minor actions',C:'Conditional – actions required',D:'Not fit – critical findings'}[g]};}
 const pctColor=p=>p==null?'var(--na-soft)':p>=90?'var(--sev1)':p>=75?'#5aa02c':p>=50?'var(--sev3)':'var(--sev4)';
-function zoneScore(sc,z){let n=0,d=0;for(const sec of sc.T.sections){if(sec.zone!==z)continue;const s=sc.secs[sec.id];if(s.pct!=null){n+=s.pct;d++}}return d?n/d:null}
+function zoneScore(sc,z){let n=0,d=0;for(const sec of (sc.secList||sc.T.sections)){if(!zoneHas(sec,z))continue;const s=sc.secs[sec.id];if(s.pct!=null){n+=s.pct;d++}}return d?n/d:null}
 function ring(p,size=64,stroke=7){const r=(size-stroke)/2,c=2*Math.PI*r,v=p==null?0:p/100;
   return `<svg viewBox="0 0 ${size} ${size}" aria-hidden="true"><circle cx="${size/2}" cy="${size/2}" r="${r}" fill="none" stroke="var(--na-soft)" stroke-width="${stroke}"/><circle cx="${size/2}" cy="${size/2}" r="${r}" fill="none" stroke="${pctColor(p)}" stroke-width="${stroke}" stroke-linecap="round" stroke-dasharray="${c*v} ${c}"/></svg>`;}
 
@@ -1037,7 +1283,7 @@ function vHome(){
    <section class="stack" style="min-width:0">
     <div class="row"><input class="search" id="q" type="search" placeholder="Search wind farm, turbine or type" value="${esc(S.q)}" aria-label="Search assessments">
      <div class="chips">${[['all','All'],['open','In progress'],['done','Completed']].map(([k,t])=>`<button class="chip" data-filter="${k}" aria-pressed="${S.filter===k}">${t}</button>`).join('')}</div></div>
-    <div class="chips">${[['all','All types'],['WTQCIA','WTQCIA · Quality & CI'],['LEA','LEA · Lifetime extension'],['SVSC','SVSC · Service vehicles'],['WOQCIA','WOQCIA · Warehouse'],['SWQCIA','SWQCIA · Substation']].map(([k,t])=>`<button class="chip" data-tfilter="${k}" aria-pressed="${S.tfilter===k}">${t}</button>`).join('')}</div>
+    <div class="chips">${[['all','All types'],['GEN','General audit'],['WTQCIA','Turbine quality'],['LEA','Lifetime extension'],['SVSC','Service vehicles'],['WOQCIA','Warehouse'],['SWQCIA','Substation']].map(([k,t])=>`<button class="chip" data-tfilter="${k}" aria-pressed="${S.tfilter===k}">${t}</button>`).join('')}</div>
     <div class="list">${list.length?list.map(aCard).join(''):emptyAssess(all.length)}</div>
    </section>
    <aside class="stack" style="min-width:0">
@@ -1051,14 +1297,14 @@ function vHome(){
 function emptyAssess(n){
   if(!S.loadedA&&!S.dbErr)return `<div class="card empty"><p class="muted">Loading assessments…</p></div>`;
   if(n)return `<div class="card empty"><p class="muted">No assessment matches this filter.</p></div>`;
-  return `<div class="card empty"><h2>No assessments yet</h2><p class="muted">Start a WTQCIA quality walk-down (${TPL.WTQCIA.items.length} control points, any turbine type) or a LEA lifetime extension inspection (${TPL.LEA.items.length} control points, Vestas V80/V90), with photos at every point.</p><button class="btn primary" data-new ${S.canWrite&&S.db?'':'disabled'}>${ICON.plus}New assessment</button></div>`;
+  return `<div class="card empty"><h2>No assessments yet</h2><p class="muted">Start a general audit (${TPL.GEN.items.length} control points in four sheets), a turbine quality walk-down (${TPL.WTQCIA.items.length} control points, any turbine type) or one of the other checks, with photos at every point.</p><button class="btn primary" data-new ${S.canWrite&&S.db?'':'disabled'}>${ICON.plus}New assessment</button></div>`;
 }
 function aCard(a){
   const sc=a.sc,pr=Math.round(sc.done/sc.total*100);
   return `<button class="acard" data-go="${a.status==='completed'?'r-':'a-'}${a.id}">
    <div class="ring">${ring(sc.pct)}<b>${sc.pct==null?'–':Math.round(sc.pct)}</b></div>
    <div style="min-width:0"><h3>${esc(a.wtg||'Turbine')} <span class="muted" style="font-weight:500;font-size:15px">· ${esc(a.wf||'')}</span></h3>
-    <div class="meta">${a.readOnly?'<span class="pill na" style="padding:0 6px">online copy</span>':a.source==='online-draft'?'<span class="pill nad" style="padding:0 6px">from online</span>':''}<span class="tplb tpl-${tplOf(a).k}">${tplOf(a).tag}</span>${a.country?`<span>${esc(a.country)}</span>`:''}<span>${esc(a.type||'')} ${esc(a.mk||'')}</span><span>${fmtD(a.date)}</span><span>${(a.inspectors||[]).map(nm).map(esc).join(', ')}</span></div>
+    <div class="meta">${a.readOnly?'<span class="pill na" style="padding:0 6px">online copy</span>':a.source==='online-draft'?'<span class="pill nad" style="padding:0 6px">from online</span>':''}<span class="tplb tpl-${tplOf(a).k}">${tplOf(a).lab}</span>${a.country?`<span>${esc(a.country)}</span>`:''}<span>${esc(a.type||'')} ${esc(a.mk||'')}</span><span>${fmtD(a.date)}</span><span>${(a.inspectors||[]).map(nm).map(esc).join(', ')}</span></div>
     ${a.status==='completed'?'':`<div class="pbar" title="${pr}% of control points answered"><i style="width:${pr}%"></i></div>`}</div>
    <div class="stack" style="align-items:flex-end;gap:6px">${a.status==='completed'?`<span class="grade g-${sc.grade.g}" title="${esc(sc.grade.t)}">${sc.grade.g}</span>`:`<span class="pill nad">${pr}%</span>`}
     ${sc.nok?`<span class="pill nok">${sc.nok} nOK</span>`:''}</div></button>`;
@@ -1077,10 +1323,34 @@ function sheetNew(tk){
   if(!S.canWrite||!S.db)return;
   const insp=S.meId?[S.meId]:[];
   if(!tk){openSheet(`<h2>New assessment</h2><p class="muted" style="margin-top:-6px">Choose the assessment type.</p>
-   <div class="stack">${['WTQCIA','WOQCIA','SWQCIA','SVSC','LEA'].map(k=>{const T=TPL[k];return `<button class="tpick tpl-${k}" data-newtpl="${k}"><span class="row spread"><b>${esc(T.name)}</b><span class="tplb tpl-${k}">${T.tag}</span></span><span class="muted tblurb">${esc(T.blurb)}</span><span class="mono muted" style="font-size:12px">${T.items.length} control points · ${T.sections.length} sections${k==='WTQCIA'?' · most used in the field':''}</span></button>`}).join('')}</div>
+   <div class="stack">${['GEN','WTQCIA','WOQCIA','SWQCIA','SVSC','LEA'].map(k=>{const T=TPL[k];return `<button class="tpick tpl-${k}" data-newtpl="${k}"><span class="row spread"><b>${esc(T.name)}</b><span class="tplb tpl-${k}">${T.lab}</span></span><span class="muted tblurb">${esc(T.blurb)}</span><span class="mono muted" style="font-size:12px">${T.items.length} control points · ${T.sections.length} sections${k==='GEN'?' · 4 sheets, pick the ones you need':''}</span></button>`}).join('')}</div>
+   ${S.dl?`<div class="blankrow"><span class="muted" style="font-size:13px">Blank form (PDF) to print or share:</span>${['GEN','WTQCIA','WOQCIA','SWQCIA','SVSC','LEA'].map(k=>`<button type="button" class="chip" data-blank="${k}">${ICON.dl.replace('<svg','<svg width="13" height="13"')} ${TPL[k].lab}</button>`).join('')}</div>`:''}
    <div class="row" style="justify-content:flex-end;margin-top:12px"><button type="button" class="btn" data-close>Cancel</button></div>`);return}
   const T=TPL[tk];
-  if(T.site){const W=T.site==='warehouse';openSheet(`<div class="row spread"><h2 style="margin:0">${esc(T.name)}</h2><span class="tplb tpl-${tk}">${T.tag}</span></div>
+  if(T.gen){openSheet(`<div class="row spread"><h2 style="margin:0">${esc(T.name)}</h2><span class="tplb tpl-${tk}">${T.lab}</span></div>
+   <form id="fnew" style="margin-top:12px">
+    <div class="field"><span>Sheets to audit</span><div class="partpick">${GEN_PARTS.map(([k,l])=>`<label class="ppick"><input type="checkbox" name="gp" value="${k}" checked>${partIcon(k,30)}<span><b>${esc(GEN_PART_SHORT[k])}</b><small class="muted">${fmtMin(partMins(k))} · ${GEN_SECTIONS.filter(x=>x.part===k).reduce((n,x)=>n+x.items.length,0)} points</small></span></label>`).join('')}</div></div>
+    <div class="fgrid">
+     <label class="field"><span>Wind farm / site</span><input id="n-wf" required placeholder="e.g. Serra do Alvão"></label>
+     <label class="field"><span>Audit reference (WTG ID / serial no.)</span><input id="n-wtg" required placeholder="e.g. WTG 07"></label>
+     <label class="field"><span>OEM / model</span><select id="n-type">${TPL.WTQCIA.types.map(([g,ms])=>`<optgroup label="${esc(g)}">${ms.map(t=>`<option>${esc(t)}</option>`).join('')}</optgroup>`).join('')}</select></label>
+     <label class="field"><span>Audit date</span><input id="n-date" type="date" value="${today()}" required></label>
+     <label class="field"><span>Transformer location</span><select id="n-trafo">${Object.entries(TRAFO).map(([k,v])=>`<option value="${k}">${v}</option>`).join('')}</select></label>
+     <label class="field"><span>Reason for selection</span><input id="n-reason" placeholder="e.g. most alarms last quarter"></label>
+    </div>
+    ${countryField()}
+    <div class="field"><span>Auditor(s)</span>${peoplePicker('n-insp',insp)}</div>
+    <p class="muted" style="font-size:13px;margin:4px 0 0">File name used for exports: SITE_WTGID_YYYYMMDD. The other sheet details (escort, work order, plates…) are filled at the top of the audit.</p>
+    <div class="row" style="justify-content:flex-end;margin-top:8px"><button type="button" class="btn" data-close>Cancel</button><button class="btn primary">Start audit</button></div></form>`);
+   bindPicker('n-insp',insp);
+   const setTr=()=>{const d=trafoDefault($('#n-type').value);if(d)$('#n-trafo').value=d};setTr();$('#n-type').onchange=setTr;
+   $('#fnew').onsubmit=async e=>{e.preventDefault();const parts=[...document.querySelectorAll('input[name=gp]:checked')].map(x=>x.value);if(!parts.length){toast('Pick at least one sheet');return}
+    const id=uid();const b=e.submitter;if(b)b.disabled=true;
+    const d={tpl:tk,parts,wf:$('#n-wf').value.trim(),wtg:$('#n-wtg').value.trim(),type:$('#n-type').value,mk:'',trafo:$('#n-trafo').value,date:$('#n-date').value,reason:$('#n-reason').value.trim(),hdr:{reason:$('#n-reason').value.trim()},
+      country:$('#n-country').value,countryOk:false,inspectors:[...pickers['n-insp']],status:'in_progress',answers:{},createdBy:S.meId,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()};
+    try{localStorage.setItem('wtq_country',d.country)}catch(e){}
+    try{await S.db.doc('assessments/'+id).set(d);closeSheet();go('a-'+id)}catch(err){if(b)b.disabled=false;toast(dbMsg(err))}};return}
+  if(T.site){const W=T.site==='warehouse';openSheet(`<div class="row spread"><h2 style="margin:0">${esc(T.name)}</h2><span class="tplb tpl-${tk}">${T.lab}</span></div>
    <form id="fnew" style="margin-top:12px"><div class="fgrid">
      <label class="field"><span>${W?'Warehouse':'Substation'}</span><input id="n-wtg" required placeholder="${W?'e.g. Central warehouse':'e.g. SE Candeeiros'}"></label>
      <label class="field"><span>${W?'Location':'Wind farm'}</span><input id="n-wf" required></label>
@@ -1096,7 +1366,7 @@ function sheetNew(tk){
       country:$('#n-country').value,countryOk:false,inspectors:[...pickers['n-insp']],status:'in_progress',answers:{},createdBy:S.meId,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()};
     try{localStorage.setItem('wtq_country',d.country)}catch(e){}
     try{await S.db.doc('assessments/'+id).set(d);closeSheet();go('a-'+id)}catch(err){if(b)b.disabled=false;toast(dbMsg(err))}};return}
-  if(T.vehicle){openSheet(`<div class="row spread"><h2 style="margin:0">${esc(T.name)}</h2><span class="tplb tpl-${tk}">${T.tag}</span></div>
+  if(T.vehicle){openSheet(`<div class="row spread"><h2 style="margin:0">${esc(T.name)}</h2><span class="tplb tpl-${tk}">${T.lab}</span></div>
    <form id="fnew" style="margin-top:12px"><div class="fgrid">
      <label class="field"><span>Licence plate</span><input id="n-wtg" required placeholder="e.g. AA-00-AA" style="text-transform:uppercase"></label>
      <label class="field"><span>Odometer (km)</span><input id="n-hours" inputmode="numeric" required></label>
@@ -1113,7 +1383,7 @@ function sheetNew(tk){
       resp:[...pickers['n-resp']],country:$('#n-country').value,countryOk:false,inspectors:[...pickers['n-insp']],status:'in_progress',answers:{},createdBy:S.meId,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()};
     try{localStorage.setItem('wtq_country',d.country)}catch(e){}
     try{await S.db.doc('assessments/'+id).set(d);closeSheet();go('a-'+id)}catch(err){if(b)b.disabled=false;toast(dbMsg(err))}};return}
-  openSheet(`<div class="row spread"><h2 style="margin:0">${esc(T.name)}</h2><span class="tplb tpl-${tk}">${T.tag}</span></div>
+  openSheet(`<div class="row spread"><h2 style="margin:0">${esc(T.name)}</h2><span class="tplb tpl-${tk}">${T.lab}</span></div>
    <form id="fnew" style="margin-top:12px">
     <div class="fgrid">
      <label class="field"><span>Wind farm</span><input id="n-wf" required placeholder="e.g. Serra do Alvão"></label>
@@ -1160,22 +1430,22 @@ function vExec(id){
   const pr=Math.round(sc.done/sc.total*100);
   return `${notices()}<div class="exechead">
    <div class="row spread" style="gap:8px"><div class="row" style="gap:8px;min-width:0"><button class="btn sm ghost" data-go="home" aria-label="Back">${ICON.back}</button>
-     <div style="min-width:0"><div class="eyebrow"><span class="tplb tpl-${T.k}">${T.tag}</span> ${esc(a.wf)} · ${esc(a.type)} ${esc(a.mk||'')}</div><h1 style="font-size:22px">${esc(a.wtg)}</h1></div></div>
+     <div style="min-width:0"><div class="eyebrow"><span class="tplb tpl-${T.k}">${T.lab}</span> ${esc(a.wf)} · ${esc(a.type)} ${esc(a.mk||'')}</div><h1 style="font-size:22px">${esc(a.wtg)}</h1></div></div>
     <div class="row" style="gap:10px"><div class="ring" style="width:48px;height:48px">${ring(sc.pct,48,6)}<b style="font-size:13px">${sc.pct==null?'–':Math.round(sc.pct)}</b></div>
      ${syncPill(a.id)}<div class="hide-m"><div class="mono" style="font-size:13px">${sc.done}/${sc.total} answered</div><div class="muted" style="font-size:12px">${sc.nok} nOK · ${pr}%</div></div>
      ${doc?`<button class="btn sm" data-go="doc-${doc.id}">${ICON.doc}SWI</button>`:''}<button class="btn sm" data-go="r-${a.id}">${ICON.chart}<span class="hide-m">Report</span></button></div></div>
    <div class="pbar" style="margin:8px 0"><i style="width:${pr}%"></i></div>
-   <nav class="secnav" aria-label="Sections">${T.sections.map(s=>{const x=sc.secs[s.id];return `<button data-jump="${s.id}" class="${x.done===x.count?'done':''} ${x.nok?'has-nok':''}"><span class="dot"></span>${s.id.slice(1)} ${esc(s.t.split(' ')[0])}</button>`}).join('')}</nav>
+   <nav class="secnav" aria-label="Sections">${sc.secList.map(s=>{const x=sc.secs[s.id];return `<button data-jump="${s.id}" class="${x.done===x.count?'done':''} ${x.nok?'has-nok':''}"><span class="dot"></span>${T.gen?s.id:s.id.slice(1)} ${esc(s.t.split(/[ ,:]/)[0])}</button>`}).join('')}</nav>
   </div>
   ${S.offline&&pendingCount(a.id)?`<div class="notice" style="margin-top:10px">No network. Your answers and photos are kept on this device and upload by themselves when the network is back. Keep this page open (you can lock the phone).</div>`:''}
   ${locked&&a.status==='completed'?`<div class="lockbar">${ICON.check} Completed ${fmtDT(a.completedAt)} by ${esc(nm(a.completedBy))}. Answers are locked.${(S.canEdit||S.admins.includes(S.meId))&&!a.readOnly?` <button class="btn sm" data-reopen="${a.id}">Reopen</button>`:''}</div>`:''}
   ${countryCard(a,locked)}
-  ${T.sections.map(s=>`<section class="section" id="sec-${s.id}"><header><span class="mono">${s.id}</span><h2>${esc(s.t)}</h2><span class="muted" style="margin-left:auto;font-size:13px">${sc.secs[s.id].done}/${s.items.length}</span></header>
+  ${T.gen?genHead(a,sc,locked):''}${sc.secList.map((s,si)=>`${T.gen&&(si===0||sc.secList[si-1].part!==s.part)?partBanner(s.part,sc):''}<section class="section" id="sec-${s.id}"><header><span class="mono">${s.id}</span><h2>${esc(s.t)}</h2><span class="muted" style="margin-left:auto;font-size:13px;white-space:nowrap">${s.min?`<span class="mins">${s.min} min</span> · `:''}${sc.secs[s.id].done}/${s.items.length}</span></header>
     ${s.items.map(x=>itemCard(a,ITEM[x[0]],ans[x[0]]||{},locked)).join('')}</section>`).join('')}
   ${actionsBox(a)}
   ${locked?'':finishBox(a,sc)}`;
 }
-function missingOf(a){const ans=answersOf(a),m=[];if(!a.countryOk)m.push(['Country','not answered']);for(const it of tplOf(a).items){const r=ans[it.code]||{};
+function missingOf(a){const ans=answersOf(a),m=[];if(!a.countryOk)m.push(['Country','not answered']);for(const it of itemsOf(a)){const r=ans[it.code]||{};
   if(!r.s){m.push([it.code,'not answered']);continue}
   const ph=(r.photos||[]).length;if(r.s!=='na'&&(it.o.p==='always'||(it.o.p==='nok'&&r.s==='nok'))&&!ph)m.push([it.code,'photo missing']);
   if(it.o.m&&r.s==='ok'&&it.o.m.max!=null&&!(r.v&&r.v[0]!==''&&r.v[0]!=null))m.push([it.code,'value missing'])}return m}
@@ -1193,11 +1463,11 @@ function itemCard(a,it,r,locked){
   if(it.o.d)meas+=`<div class="meas"><label>${esc(it.o.d)} <input type="date" id="d-${it.code}" data-date="${it.code}" value="${esc(r.d||'')}" ${locked?'disabled':''} style="width:auto;font-family:var(--f-body)"></label>${r.d&&r.d<today()?'<span class="pill nok">expired</span>':''}</div>`;
   const xs=S.actions.filter(x=>x.aid===a.id&&x.code===it.code);
   return `<article class="item s-${s}" id="it-${it.code}">
-   <div class="ihead"><span class="code">${it.code}</span><span class="wt" title="Weight ${it.w}">${[1,2,3].map(i=>`<i class="${i<=it.w?'on':''}"></i>`).join('')}</span></div>
+   <div class="ihead"><span class="code">${it.o.ref||it.code}${it.o.s?' <span class="sbadge" title="Safety-critical point: Immediate action makes the whole audit Critical">S</span>':''}</span>${it.o.sc==='audit'?'':`<span class="wt" title="Weight ${it.w}">${[1,2,3].map(i=>`<i class="${i<=it.w?'on':''}"></i>`).join('')}</span>`}</div>
    <p class="itext">${esc(it.text)}</p>${it.o.h?`<p class="hint">${esc(it.o.h)}</p>`:''}
    ${meas}
    ${it.o.flow?`<div class="flowline" aria-label="Flow">${it.o.flow.map(f=>`<span>${esc(f)}</span>`).join('<i>→</i>')}</div>`:''}
-   ${it.o.sc?`<div class="seg scale n${SCALES[it.o.sc].length}" role="group" aria-label="Result ${it.code}">${SCALES[it.o.sc].map(([k,t,v,cat])=>`<button class="${cat}" data-set="${it.code}" data-s="${k}" aria-pressed="${r.o===k}" ${locked?'disabled':''}>${t}</button>`).join('')}</div>`
+   ${it.o.sc?`<div class="seg scale n${SCALES[it.o.sc].length}" role="group" aria-label="Result ${it.code}">${SCALES[it.o.sc].map(([k,t,v,cat])=>`<button class="${cat} k-${k}" data-set="${it.code}" data-s="${k}" aria-pressed="${r.o===k}" ${locked?'disabled':''}>${t}</button>`).join('')}</div>`
    :`<div class="seg" role="group" aria-label="Result ${it.code}">${[['ok','OK'],['nok','nOK'],['na','n/a']].map(([k,t])=>`<button class="${k}" data-set="${it.code}" data-s="${k}" aria-pressed="${s===k}" ${locked?'disabled':''}>${t}</button>`).join('')}</div>`}
    <div class="iact">
     ${S.canWrite&&S.assets?`<button class="btn sm${needPh?' primary':''}" data-pickphoto="${it.code}">${ICON.cam}${needPh?'Add photo':'Photo'}</button>`:''}
@@ -1245,20 +1515,20 @@ const dbMsg=e=>e&&e.code==='invalid_argument'?'You don’t have permission to ch
 function vReport(id){
   const a=S.assess.find(x=>x.id===id);
   if(!a)return S.loadedA?`<div class="card empty"><h2>Report not found</h2><button class="btn" data-go="home">Back</button></div>`:`<div class="card empty"><p class="muted">Loading report…</p></div>`;
-  const sc=scoreOf(a),T=sc.T,ans=answersOf(a);want([...(a.inspectors||[]),a.completedBy,a.createdBy]);
-  const finds=T.items.filter(i=>ans[i.code]?.s==='nok');
-  const meas=T.items.filter(i=>i.o.m&&ans[i.code]?.v&&ans[i.code].v.some(v=>v!==''&&v!=null));
-  const notes=T.items.filter(i=>ans[i.code]?.note&&ans[i.code].s!=='nok');
-  const photos=T.items.flatMap(i=>(ans[i.code]?.photos||[]).map(p=>[i.code,p]));
+  const sc=scoreOf(a),T=sc.T,ans=answersOf(a),IT=itemsOf(a);want([...(a.inspectors||[]),a.completedBy,a.createdBy]);
+  const finds=IT.filter(i=>ans[i.code]?.s==='nok');
+  const meas=IT.filter(i=>i.o.m&&ans[i.code]?.v&&ans[i.code].v.some(v=>v!==''&&v!=null));
+  const notes=IT.filter(i=>ans[i.code]?.note&&ans[i.code].s!=='nok');
+  const photos=IT.flatMap(i=>(ans[i.code]?.photos||[]).map(p=>[i.code,p]));
   const xs=S.actions.filter(x=>x.aid===a.id);
   return `${notices()}<div class="row spread" style="margin-bottom:14px"><button class="btn sm ghost" data-go="home">${ICON.back}Assessments</button>
    <div class="row" style="gap:8px">${a.status!=='completed'?`<button class="btn sm" data-go="a-${a.id}">Continue inspection</button>`:`<button class="btn sm" data-go="a-${a.id}">Open checklist</button>`}
     ${FIELD&&a.readOnly?'<span class="pill na">Online report · read only</span>':FIELD?`<button class="btn sm primary" data-export="${a.id}">${ICON.dl}Send to online app</button>`:`<button class="btn sm" data-copylink="${a.id}">${ICON.link}Copy link</button>`}
-    ${S.dl?`<button class="btn sm primary" data-html="${a.id}">${ICON.dl}Download report</button><button class="btn sm" data-csv="${a.id}">CSV</button>`:''}</div></div>
+    ${S.dl?`<button class="btn sm primary" data-rpdf="${a.id}">${ICON.dl}PDF</button><button class="btn sm" data-blank="${T.k}" data-aid="${a.id}" title="Printable form to fill in by hand">${ICON.doc}Blank form</button><button class="btn sm" data-html="${a.id}">HTML</button><button class="btn sm" data-csv="${a.id}">CSV</button>`:''}</div></div>
   <article class="report">
-   <div class="rband"><div><div class="eyebrow">nadara · ${esc(T.name)} (${T.tag}) · report</div><h1>${esc(a.wtg)} · ${esc(a.wf)}</h1>${a.country?`<div style="margin-top:4px;font-size:14px;opacity:.9">${esc(a.country)}${a.countryOk?'':' (not confirmed)'}</div>`:''}</div>
+   <div class="rband"><div><div class="eyebrow">nadara · ${esc(T.name)} · report</div><h1>${esc(a.wtg)} · ${esc(a.wf)}</h1>${a.country?`<div style="margin-top:4px;font-size:14px;opacity:.9">${esc(a.country)}${a.countryOk?'':' (not confirmed)'}</div>`:''}</div>
     <div class="pill" style="background:rgba(255,255,255,.18);color:#fff">${a.status==='completed'?'Completed '+fmtD(a.completedAt):'Draft – in progress'}</div></div>
-   <div class="rsec">${T.site?`<div class="idgrid">
+   <div class="rsec">${T.gen?genIdGrid(a,sc):T.site?`<div class="idgrid">
     <div><span>${T.site==='warehouse'?'Warehouse':'Substation'}</span><b>${esc(a.wtg)}</b></div><div><span>${T.site==='warehouse'?'Location':'Wind farm'}</span><b>${esc(a.wf)}</b></div><div><span>Inspection date</span><b>${fmtD(a.date)}</b></div><div><span>Floor area</span><b class="mono">${a.area?esc(a.area)+' m²':'—'}</b></div>
     <div><span>${T.site==='warehouse'?'Usual occupancy':'Manned'}</span><b>${esc(a.occ||'—')}</b></div><div><span>Inspected by</span><b>${(a.inspectors||[]).map(nm).map(esc).join(', ')||'—'}</b></div><div><span>Findings (nOK)</span><b class="mono">${sc.nok} · ${sc.crit} critical</b></div><div><span>Improvements</span><b class="mono">${sc.imp}</b></div>
    </div>`:T.vehicle?`<div class="idgrid">
@@ -1268,27 +1538,27 @@ function vReport(id){
     <div><span>Wind farm</span><b>${esc(a.wf)}</b></div><div><span>Turbine</span><b>${esc(a.wtg)}</b></div><div><span>Type</span><b>${esc(a.type)} ${esc(a.mk||'')}</b></div><div><span>Inspection date</span><b>${fmtD(a.date)}</b></div><div><span>Transformer</span><b>${esc(TRAFO[a.trafo]||'—')}</b></div>
     <div><span>${T.mk?'Operating hours':'Reason'}</span><b class="${T.mk?'mono':''}">${esc((T.mk?a.hours:a.reason)||'—')}</b></div><div><span>Inspectors</span><b>${(a.inspectors||[]).map(nm).map(esc).join(', ')||'—'}</b></div><div><span>Control points</span><b class="mono">${sc.done}/${sc.total}</b></div><div><span>Findings (nOK)</span><b class="mono">${sc.nok} · ${sc.crit} structural</b></div>
    </div>`}</div>
-   <div class="rsec"><h2>Condition score</h2><div class="scorebox">
-    <div class="stack" style="align-items:center;gap:8px"><div class="bigring">${ring(sc.pct,150,14)}<div><b>${sc.pct==null?'–':Math.round(sc.pct)}</b><span class="muted" style="font-size:12px">of 100</span></div></div>
+   <div class="rsec"><h2>Condition score</h2><div class="scorebox${T.gen?' gen':''}">
+    <div class="stack" style="align-items:center;gap:8px"><div class="bigring">${ring(sc.pct,150,14)}<div>${T.gen?`<b>${sc.pct==null?'–':(sc.pct/5).toFixed(1)}</b><span class="muted" style="font-size:12px">of 20 · ${sc.pct==null?'–':Math.round(sc.pct)}%</span>`:`<b>${sc.pct==null?'–':Math.round(sc.pct)}</b><span class="muted" style="font-size:12px">of 100</span>`}</div></div>
      <div class="row" style="gap:8px"><span class="grade g-${sc.grade.g}">${sc.grade.g}</span><b style="font-weight:500">${esc(sc.grade.t)}</b></div>
-     <p class="muted" style="font-size:12px;max-width:240px;text-align:center;margin:0">${T.secW?'Section-weighted score (weights next to each section); inside each section critical points ×3, major ×2, minor ×1; graded answers count partially; n/a excluded. A critical nOK caps the grade at C.':`Weighted score: ${T.vehicle?'critical':'structural'} points ×3, major ×2, minor ×1; n/a excluded. A ${T.vehicle?'critical':'structural'} nOK caps the grade at C.`}</p></div>
-    ${T.vehicle?van(sc):T.site==='warehouse'?whMap(sc):T.site==='substation'?ssMap(sc):turbine(sc,a)}
-    <div class="bars">${T.sections.map(s=>{const x=sc.secs[s.id];return `<div class="bar"><span class="t" title="${esc(s.t)}"><span class="mono muted" style="font-size:11px">${s.id}${T.secW?` · ${T.secW[s.id]}%`:''}</span> ${esc(s.t)}</span><span class="tr"><i style="width:${x.pct??0}%;background:${pctColor(x.pct)}"></i></span><span class="n">${x.pct==null?'—':Math.round(x.pct)+'%'}</span></div>`}).join('')}</div>
+     ${T.gen?`<div class="certline ${sc.grade.pass?'pass':'fail'}">${sc.pct==null?'Not scored yet':sc.grade.pass?'Meets the 14/20 certification threshold':'Below the 14/20 certification threshold'}</div>`:''}<p class="muted" style="font-size:12px;max-width:240px;text-align:center;margin:0">${T.gen?'Each point: Conforming 20 · Acceptable 15 · Medium priority 10 · High priority 5 · Immediate action 0; N/A excluded. Score = average. Good ≥ 18 · Acceptable ≥ 14 · Medium ≥ 8 · Poor ≥ 4 · Critical below 4, or any safety (S) point needing immediate action.':T.secW?'Section-weighted score (weights next to each section); inside each section critical points ×3, major ×2, minor ×1; graded answers count partially; n/a excluded. A critical nOK caps the grade at C.':`Weighted score: ${T.vehicle?'critical':'structural'} points ×3, major ×2, minor ×1; n/a excluded. A ${T.vehicle?'critical':'structural'} nOK caps the grade at C.`}</p></div>
+    ${T.gen?genMap(sc,a):T.vehicle?van(sc):T.site==='warehouse'?whMap(sc):T.site==='substation'?ssMap(sc):turbine(sc,a)}
+    <div class="bars">${sc.secList.map((s,si)=>{const x=sc.secs[s.id];return `${T.gen&&(si===0||sc.secList[si-1].part!==s.part)?`<div class="barpart">${esc(GEN_PART_SHORT[s.part])} <b>${sc.parts[s.part]==null?'—':(sc.parts[s.part]/5).toFixed(1)+' /20'}</b></div>`:''}<div class="bar"><span class="t" title="${esc(s.t)}"><span class="mono muted" style="font-size:11px">${s.id}${T.secW?` · ${T.secW[s.id]}%`:''}</span> ${esc(s.t)}</span><span class="tr"><i style="width:${x.pct??0}%;background:${pctColor(x.pct)}"></i></span><span class="n">${x.pct==null?'—':Math.round(x.pct)+'%'}</span></div>`}).join('')}</div>
    </div></div>
    <div class="rsec"><h2>Findings <span class="pill nok">${finds.length}</span></h2>
-    ${finds.length?finds.map(i=>{const r=ans[i.code];const x=xs.filter(y=>y.code===i.code);return `<div class="finding"><div class="row spread"><span><span class="code">${i.code}</span> <span class="muted" style="font-size:12px">${esc(i.sec.t)}</span></span>${x.length?x.map(y=>{const st=actState(y);return `<button class="pill ${st.k==='closed'?'ok':st.k==='review'?'warn':'nok'}" style="border:0;cursor:pointer" data-openact="${y.id}">Action · ${esc(st.t)}</button>`}).join(''):'<span class="pill na">No action raised</span>'}</div>
+    ${finds.length?finds.map(i=>{const r=ans[i.code];const x=xs.filter(y=>y.code===i.code);return `<div class="finding"><div class="row spread"><span><span class="code">${i.o.ref||i.code}</span>${i.o.s?'<span class="sbadge" title="Safety-critical">S</span>':''} <span class="muted" style="font-size:12px">${esc(i.sec.t)}</span></span>${x.length?x.map(y=>{const st=actState(y);return `<button class="pill ${st.k==='closed'?'ok':st.k==='review'?'warn':'nok'}" style="border:0;cursor:pointer" data-openact="${y.id}">Action · ${esc(st.t)}</button>`}).join(''):'<span class="pill na">No action raised</span>'}</div>
       <div>${esc(i.text)} ${i.o.sc?ansPill(i,r):''}</div>${r.obs||r.prop?impCard(r):''}${r.v&&r.v.some(v=>v!=='')?`<div class="mono" style="font-size:13px">Measured: ${r.v.filter(v=>v!=='').map(esc).join(' / ')} ${esc(i.o.m.u)}</div>`:''}${r.note?`<div class="muted">${esc(r.note)}</div>`:''}
       ${(r.photos||[]).length?`<div class="thumbs">${r.photos.map(p=>`<button class="thumb" data-zoom="${p}"><img alt="" src="${blob(p)}" loading="lazy"></button>`).join('')}</div>`:''}</div>`}).join(''):'<p class="muted" style="margin:0">No non-conformities recorded.</p>'}</div>
-   ${notes.length?`<div class="rsec"><h2>${T.k==='WTQCIA'?'Observations and improvement ideas':'Observations'}</h2>${notes.map(i=>`<div class="finding"><div><span class="code">${i.code}</span> <span class="muted" style="font-size:12px">${esc(i.sec.t)}</span> ${stPill(ans[i.code].s)}</div><div>${esc(i.text)}</div><div class="muted">${esc(ans[i.code].note)}</div></div>`).join('')}</div>`:''}
-   ${(()=>{const L=T.items.filter(i=>ans[i.code]&&(ans[i.code].s==='imp'||ans[i.code].s==='meas'));return L.length?`<div class="rsec"><h2>Improvement opportunities <span class="pill warn">${L.length}</span></h2>${L.map(i=>{const r=ans[i.code];const x=xs.filter(y=>y.code===i.code);return `<div class="finding"><div class="row spread"><span><span class="code">${i.code}</span> <span class="muted" style="font-size:12px">${esc(i.sec.t)}</span></span>${x.length?x.map(y=>{const st=actState(y);return `<button class="pill ${st.k==='closed'?'ok':st.k==='review'?'warn':'nok'}" style="border:0;cursor:pointer" data-openact="${y.id}">Action · ${esc(st.t)}</button>`}).join(''):''}</div><div>${esc(i.text)} ${ansPill(i,r)}</div>${impCard(r)}${(r.photos||[]).length?`<div class="thumbs">${r.photos.map(p=>`<button class="thumb" data-zoom="${p}"><img alt="" src="${blob(p)}" loading="lazy"></button>`).join('')}</div>`:''}</div>`}).join('')}</div>`:''})()}
-   ${T.items.some(i=>i.o.d&&ans[i.code]?.d)?`<div class="rsec"><h2>Inspection dates</h2><div class="tbl"><table><thead><tr><th>Code</th><th>Equipment</th><th>Next inspection</th><th>Result</th></tr></thead><tbody>${T.items.filter(i=>i.o.d&&ans[i.code]?.d).map(i=>`<tr><td class="mono">${i.code}</td><td>${esc(i.text)}</td><td class="mono" style="${ans[i.code].d<today()?'color:var(--nok)':''}">${fmtD(ans[i.code].d)}${ans[i.code].d<today()?' · expired':''}</td><td>${stPill(ans[i.code].s)}</td></tr>`).join('')}</tbody></table></div></div>`:''}
+   ${notes.length?`<div class="rsec"><h2>${T.k==='WTQCIA'?'Observations and improvement ideas':'Observations'}</h2>${notes.map(i=>`<div class="finding"><div><span class="code">${i.o.ref||i.code}</span>${i.o.s?'<span class="sbadge" title="Safety-critical">S</span>':''} <span class="muted" style="font-size:12px">${esc(i.sec.t)}</span> ${stPill(ans[i.code].s)}</div><div>${esc(i.text)}</div><div class="muted">${esc(ans[i.code].note)}</div></div>`).join('')}</div>`:''}
+   ${(()=>{const L=IT.filter(i=>ans[i.code]&&(ans[i.code].s==='imp'||ans[i.code].s==='meas'));return L.length?`<div class="rsec"><h2>Improvement opportunities <span class="pill warn">${L.length}</span></h2>${L.map(i=>{const r=ans[i.code];const x=xs.filter(y=>y.code===i.code);return `<div class="finding"><div class="row spread"><span><span class="code">${i.o.ref||i.code}</span>${i.o.s?'<span class="sbadge" title="Safety-critical">S</span>':''} <span class="muted" style="font-size:12px">${esc(i.sec.t)}</span></span>${x.length?x.map(y=>{const st=actState(y);return `<button class="pill ${st.k==='closed'?'ok':st.k==='review'?'warn':'nok'}" style="border:0;cursor:pointer" data-openact="${y.id}">Action · ${esc(st.t)}</button>`}).join(''):''}</div><div>${esc(i.text)} ${ansPill(i,r)}</div>${impCard(r)}${(r.photos||[]).length?`<div class="thumbs">${r.photos.map(p=>`<button class="thumb" data-zoom="${p}"><img alt="" src="${blob(p)}" loading="lazy"></button>`).join('')}</div>`:''}</div>`}).join('')}</div>`:''})()}
+   ${IT.some(i=>i.o.d&&ans[i.code]?.d)?`<div class="rsec"><h2>Inspection dates</h2><div class="tbl"><table><thead><tr><th>Code</th><th>Equipment</th><th>Next inspection</th><th>Result</th></tr></thead><tbody>${IT.filter(i=>i.o.d&&ans[i.code]?.d).map(i=>`<tr><td class="mono">${i.code}</td><td>${esc(i.text)}</td><td class="mono" style="${ans[i.code].d<today()?'color:var(--nok)':''}">${fmtD(ans[i.code].d)}${ans[i.code].d<today()?' · expired':''}</td><td>${stPill(ans[i.code].s)}</td></tr>`).join('')}</tbody></table></div></div>`:''}
    ${meas.length?`<div class="rsec"><h2>Measurements</h2><div class="tbl"><table><thead><tr><th>Code</th><th>Control point</th><th>Value</th><th>Limit</th><th>Result</th></tr></thead><tbody>${meas.map(i=>{const r=ans[i.code];return `<tr><td class="mono">${i.code}</td><td>${esc(i.text)}</td><td class="mono">${r.v.filter(v=>v!=='').map(esc).join(' / ')} ${esc(i.o.m.u)}</td><td class="mono">${i.o.m.max!=null?'≤ '+i.o.m.max+' '+esc(i.o.m.u):'—'}</td><td>${stPill(r.s)}</td></tr>`}).join('')}</tbody></table></div></div>`:''}
    <div class="rsec"><h2>Actions <span class="pill nad">${xs.length}</span></h2>${xs.length?`<div class="tbl"><table><thead><tr><th>Priority</th><th>Action</th><th>Owner</th><th>Due</th><th>Status</th></tr></thead><tbody>${xs.map(x=>{const st=actState(x);want([x.assignee]);return `<tr><td><span class="pill" style="background:var(--na-soft)"><i class="sev-${x.prio}" style="width:8px;height:8px;border-radius:50%;display:inline-block"></i>${esc(x.prio)}</span></td><td><a href="#act-${x.id}">${esc(x.title)}</a><div class="mono muted" style="font-size:11px">${esc(x.code)}</div></td><td>${esc(nm(x.assignee))}</td><td class="mono">${esc(x.due||'—')}</td><td>${st.k==='closed'?'<span class="pill ok">Closed</span>':st.k==='review'?`<span class="pill warn">${esc(st.t)}</span>`:`<span class="pill nok">${esc(st.t)}</span>`}</td></tr>`}).join('')}</tbody></table></div>`:'<p class="muted" style="margin:0">No actions raised from this assessment.</p>'}</div>
    ${photos.length?`<div class="rsec"><h2>Photo record <span class="pill na">${photos.length}</span></h2><div class="gallery">${photos.map(([c,p])=>`<button class="thumb" data-zoom="${p}" title="${c}"><img alt="${c}" src="${blob(p)}" loading="lazy"></button>`).join('')}</div></div>`:''}
    <div class="rsec"><h2>Validation</h2><div class="signoff"><div><div class="eyebrow">Validated by</div><b style="font-size:17px;font-weight:500">${esc(a.validatedBy?nm(a.validatedBy):(a.completedBy?nm(a.completedBy):'—'))}</b><div class="muted" style="font-size:13px">${fmtDT(a.validatedAt||a.completedAt)}</div></div>
     <div class="sigbox">${a.signature?`<img alt="Signature" src="${a.signature}">`:'<span class="muted" style="font-size:13px">Signature</span>'}</div></div>
-    <div class="idgrid" style="margin-top:14px"><div><span>Inspected by</span><b>${(a.inspectors||[]).map(nm).map(esc).join(', ')}</b></div><div><span>Last update</span><b>${fmtDT(a.updatedAt)}</b></div>${missingOf(a).filter(m=>m[1]==='photo missing').length?`<div><span>Photos pending</span><b style="color:var(--warn)">${missingOf(a).filter(m=>m[1]==='photo missing').map(m=>m[0]).join(', ')}</b></div>`:''}</div>
-    <p class="muted" style="font-size:12px;margin:12px 0 0">${T.site?esc(T.name)+'. Improvement opportunities and non-conformities become actions; each closure is validated by the action validators.':T.vehicle?'Service Vehicle Safety &amp; Condition Check. Corrective actions are tracked in the app; each closure is validated by the action validators.':T.k==='LEA'?'Findings follow the SWI Vestas V80 &amp; V90 1.8/2.0 MW – Lifetime Extension Inspection of Wind Turbine Components. Structural defects are reported to Nadara technical department.':'Wind Turbine Quality &amp; Continuous Improvement Assessment. Non-conformities become corrective actions; each closure is validated by two administrators.'}</p></div>
+    <div class="idgrid" style="margin-top:14px"><div><span>Inspected by</span><b>${(a.inspectors||[]).map(nm).map(esc).join(', ')}</b></div><div><span>Last update</span><b>${fmtDT(a.updatedAt)}</b></div>${missingOf(a).filter(m=>m[1]==='photo missing').length?`<div><span>Photos pending</span><b style="color:var(--warn)">${missingOf(a).filter(m=>m[1]==='photo missing').map(m=>(ITEM[m[0]]&&ITEM[m[0]].o.ref)||m[0]).join(', ')}</b></div>`:''}</div>
+    <p class="muted" style="font-size:12px;margin:12px 0 0">${T.gen?'General O&amp;M Quality Audit. Points rated 3 to 5 become corrective actions with an owner and a due date; each closure is validated by the action validators.':T.site?esc(T.name)+'. Improvement opportunities and non-conformities become actions; each closure is validated by the action validators.':T.vehicle?'Service Vehicle Safety &amp; Condition Check. Corrective actions are tracked in the app; each closure is validated by the action validators.':T.k==='LEA'?'Findings follow the SWI Vestas V80 &amp; V90 1.8/2.0 MW – Lifetime Extension Inspection of Wind Turbine Components. Structural defects are reported to Nadara technical department.':'Wind Turbine Quality &amp; Continuous Improvement Assessment. Non-conformities become corrective actions; each closure is validated by two administrators.'}</p></div>
   </article>`;
 }
 const impCard=r=>(r.obs||r.imp||r.prop)?`<div class="impcard">${[['Observation',r.obs],['Potential impact',r.imp],['Improvement proposal',r.prop]].filter(x=>x[1]).map(([l,v])=>`<div><span>${l}</span><p>${esc(v)}</p></div>`).join('')}</div>`:'';
@@ -1296,6 +1566,60 @@ const ansPill=(it,r)=>{const o=optOf(it,r);if(!o)return stPill(r&&r.s);const cls
 const stPill=s=>s==='imp'?'<span class="pill warn">Improvement</span>':s==='meas'?'<span class="pill warn">Measurement</span>':s==='ok'?'<span class="pill ok">OK</span>':s==='nok'?'<span class="pill nok">nOK</span>':s==='na'?'<span class="pill na">n/a</span>':'<span class="pill na">—</span>';
 const TRAFO={nacelle:'In the nacelle',mid:'Mid-tower',base:'Tower base (inside)',outside:'Outside the turbine (kiosk)'};
 const trafoDefault=t=>/ECO 100/.test(t||'')?'mid':/Vestas|^V\d/.test(t||'')?'nacelle':'';
+/* ---------- General O&M Quality Audit ---------- */
+const GEN_PART_SHORT={WTG:'Wind turbine',BOP:'Substation & MV network',WH:'Warehouse & waste',VEH:'Vehicles, PPE & access'};
+const genFieldLabel=k=>{for(const L of Object.values(GEN_FIELDS))for(const [kk,l] of L)if(kk===k)return l;return k};
+const partMins=pk=>GEN_SECTIONS.filter(x=>x.part===pk).reduce((n,x)=>n+(x.min||0),0);
+const fmtMin=m=>m>=60?`${Math.floor(m/60)} h${m%60?' '+(m%60)+' min':''}`:`${m} min`;
+function partIcon(pk,size=34){const P='#720062';const sv=b=>`<svg viewBox="0 0 40 40" width="${size}" height="${size}" aria-hidden="true">${b}</svg>`;
+  return pk==='WTG'?sv(`<rect width="40" height="40" rx="10" fill="${P}"/><path d="M19 15h2l1 19h-4z" fill="#fff"/><circle cx="20" cy="14" r="2" fill="#fff"/><path d="M20 14L20 4M20 14l8.6 5M20 14l-8.6 5" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/>`)
+  :pk==='BOP'?sv(`<rect width="40" height="40" rx="10" fill="${P}"/><path d="M8 32V16M16 32V16M6 16h12M7 21h10M24 32V20h10v12z" stroke="#fff" stroke-width="2" fill="none"/><path d="M30 22l-3 5h2.5l-1 4 3.5-5.5h-2.5z" fill="#fff"/>`)
+  :pk==='WH'?sv(`<rect width="40" height="40" rx="10" fill="${P}"/><path d="M7 17l13-8 13 8v15H7z" fill="none" stroke="#fff" stroke-width="2" stroke-linejoin="round"/><path d="M12 32v-9h16v9M12 27h16" stroke="#fff" stroke-width="2"/>`)
+  :sv(`<rect width="40" height="40" rx="10" fill="${P}"/><path d="M6 27v-9h17l5 4h6v5z" fill="#fff"/><circle cx="12" cy="28" r="3" fill="${P}" stroke="#fff" stroke-width="2"/><circle cx="28" cy="28" r="3" fill="${P}" stroke="#fff" stroke-width="2"/><path d="M24 18l4 4" stroke="${P}" stroke-width="1.5"/>`)}
+function partBanner(pk,sc){const p=sc.parts[pk];const L=sc.secList.filter(x=>x.part===pk);const dn=L.reduce((n,x)=>n+sc.secs[x.id].done,0),tt=L.reduce((n,x)=>n+x.items.length,0);
+  return `<div class="partban" id="part-${pk}">${partIcon(pk,40)}<div style="min-width:0"><div class="eyebrow">${esc((GEN_PARTS.find(x=>x[0]===pk)||[])[1]||'').split('·')[0].split('—')[0]}</div><h2>${esc(GEN_PART_SHORT[pk])}</h2><div class="muted" style="font-size:13px">${fmtMin(partMins(pk))} planned · ${dn}/${tt} answered</div></div>
+   <div class="partscore" style="--c:${pctColor(p)}"><b>${p==null?'–':(p/5).toFixed(1)}</b><span>/20</span></div></div>`}
+function genHead(a,sc,locked){const H=a.hdr||{};const parts=a.parts||[];
+  return `<div class="card genhead"><div class="row spread" style="gap:10px;flex-wrap:wrap"><div><div class="eyebrow">Audit header</div><b style="font-weight:500">Planned duration ${fmtMin(parts.reduce((n,p)=>n+partMins(p),0))}</b> <span class="muted" style="font-size:13px">· ${parts.map(p=>GEN_PART_SHORT[p]).join(' · ')}</span></div>
+   <div class="row" style="gap:6px">${parts.map(p=>`<button class="chip" data-jump="${sc.secList.find(x=>x.part===p)?.id||''}">${partIcon(p,18)} ${esc(GEN_PART_SHORT[p].split(/[ ,&]/)[0])}</button>`).join('')}</div></div>
+   <details style="margin-top:8px" ${parts.some(p=>GEN_FIELDS[p].some(([k])=>!H[k]))&&!locked?'open':''}><summary class="muted" style="cursor:pointer;font-size:13px">Sheet details (${parts.reduce((n,p)=>n+GEN_FIELDS[p].filter(([k])=>H[k]).length,0)}/${parts.reduce((n,p)=>n+GEN_FIELDS[p].length,0)} filled)</summary>
+   <div class="fgrid" style="margin-top:8px">${parts.flatMap(p=>GEN_FIELDS[p]).map(([k,l])=>`<label class="field"><span>${esc(l)}</span><input data-hdr="${k}" value="${esc(H[k]||'')}" ${locked?'disabled':''} ${k==='lastpm'?'type="date"':k==='start'?'type="time"':''}></label>`).join('')}</div></details></div>`}
+function genIdGrid(a,sc){const H=a.hdr||{};const parts=a.parts||[];const cell=(l,v,m)=>`<div><span>${esc(l)}</span><b class="${m?'mono':''}">${v?esc(v):'—'}</b></div>`;
+  return `<div class="idgrid">${cell('Wind farm / site',a.wf)}${cell('Audit reference',a.wtg)}${cell('Audit date',fmtD(a.date))}${parts.includes('WTG')?cell('OEM / model',a.type):''}
+   <div><span>Auditor(s)</span><b>${(a.inspectors||[]).map(nm).map(esc).join(', ')||'—'}</b></div>${cell('Sheets',parts.map(p=>GEN_PART_SHORT[p]).join(', '))}${cell('Control points',sc.done+'/'+sc.total,1)}${cell('Findings (rated 4–5)',sc.nok+(sc.critS?' · '+sc.critS+' safety':''),1)}
+   ${parts.flatMap(p=>GEN_FIELDS[p]).filter(([k])=>H[k]).map(([k,l])=>cell(l,k==='lastpm'?fmtD(H[k]):H[k],/hours|wo|plate|start/.test(k))).join('')}</div>`}
+function genMap(sc,a){const P='#720062',c=z=>pctColor(zoneScore(sc,z)),has=pk=>(a.parts||[]).includes(pk);
+  const op=pk=>has(pk)?1:.28,ps=pk=>sc.parts[pk]==null?'—':(sc.parts[pk]/5).toFixed(1)+'/20';
+  const blade=g=>`<path d="M50 52 L47 18 Q50 8 53 18 Z" transform="rotate(${g} 50 52)" fill="${c('blades')}" stroke="var(--surface)" stroke-width=".8"/>`;
+  return `<figure style="margin:0"><svg class="genmap" viewBox="0 0 400 236" role="img" aria-label="Wind farm audit map">
+  <rect x="0" y="206" width="400" height="14" rx="3" fill="${c('access')}" opacity="${op('VEH')}"><title>Site access &amp; roads</title></rect>
+  <path d="M8 213h384" stroke="#fff" stroke-width="1.4" stroke-dasharray="10 8" opacity=".8"/>
+  <g opacity="${op('WTG')}"><title>Wind turbine</title>
+   <rect x="44" y="194" width="44" height="9" rx="2" fill="${c('foundation')}"/>
+   <path d="M63 66 L73 66 L77 194 L59 194 Z" fill="${c('tower')}"/>
+   <rect x="61" y="61" width="14" height="5" fill="${c('yaw')}"/>
+   <rect x="58" y="44" width="44" height="17" rx="4" fill="#fff" stroke="${P}" stroke-width="1.3"/><text x="65" y="54" fill="${P}" style="font:700 8.5px Roboto,Arial,sans-serif">nadara</text><rect x="65" y="56" width="32" height="3" rx="1.5" fill="${c('nacelle')}"/>
+   <g class="grot">${blade(0)}${blade(120)}${blade(240)}</g><circle cx="52" cy="52" r="6.5" fill="${c('hub')}" stroke="var(--surface)" stroke-width="1.5"/>
+   <text class="lbl" x="92" y="40">Nacelle · drivetrain</text><text class="lbl" x="82" y="130">Tower</text><text class="lbl" x="8" y="20">Hub · blades</text></g>
+  <path d="M88 200 C120 200 130 192 160 192" fill="none" stroke="${c('mv')}" stroke-width="3" stroke-dasharray="6 4" opacity="${op('BOP')}"><title>MV network</title></path>
+  <g opacity="${op('BOP')}"><title>Substation</title>
+   <rect x="160" y="128" width="62" height="66" rx="3" fill="${c('yard')}" fill-opacity=".22" stroke="${c('yard')}" stroke-width="1.6" stroke-dasharray="3 2"/>
+   <path d="M170 186v-42M184 186v-42M166 144h22M168 152h18" stroke="${c('yard')}" stroke-width="2.4"/>
+   <rect x="194" y="160" width="20" height="18" rx="2" fill="${c('yard')}"/><path d="M205 162l-4 7h3l-1.5 6 5-8h-3z" fill="#fff"/>
+   <rect x="226" y="148" width="40" height="46" rx="3" fill="${c('ssbuild')}"/><rect x="232" y="156" width="28" height="12" rx="2" fill="${c('control')}" stroke="#fff" stroke-width="1.4"><title>Control room</title></rect><rect x="242" y="178" width="8" height="16" fill="#fff" fill-opacity=".5"/>
+   <text class="lbl" x="166" y="122">Substation · ${ps('BOP')}</text></g>
+  <g opacity="${op('WH')}"><title>Warehouse</title>
+   <path d="M286 150 L326 126 L366 150 Z" fill="${P}"/><rect x="290" y="150" width="72" height="44" fill="${c('wh')}"/>
+   <rect x="306" y="166" width="24" height="28" fill="#fff" fill-opacity=".45"/><path d="M306 172h24M306 178h24M306 184h24" stroke="#fff" stroke-opacity=".7"/>
+   <rect x="362" y="166" width="28" height="28" fill="${c('office')}"/><rect x="368" y="172" width="8" height="7" fill="#fff" fill-opacity=".6"/><rect x="379" y="172" width="8" height="7" fill="#fff" fill-opacity=".6"/>
+   <rect x="274" y="180" width="9" height="14" rx="1.5" fill="${c('waste')}"/><rect x="276" y="176" width="5" height="3" rx="1" fill="${c('waste')}"/>
+   <text class="lbl" x="394" y="118" text-anchor="end">Warehouse · ${ps('WH')}</text></g>
+  <g opacity="${op('VEH')}"><title>Service vehicle</title>
+   <path d="M150 214 v-13 h26 l7 6 h8 v7z" fill="${c('veh')}" transform="translate(0,-8)"/><circle cx="158" cy="207" r="4" fill="var(--fg)"/><circle cx="185" cy="207" r="4" fill="var(--fg)"/>
+   <path d="M120 200 a8 8 0 0 1 16 0 h3 v2 h-22 v-2z" fill="${c('ppe')}"><title>PPE</title></path>
+   <text class="lbl" x="118" y="232">Vehicles · PPE · access · ${ps('VEH')}</text></g>
+  <text class="lbl" x="8" y="232">Turbine · ${ps('WTG')}</text>
+  </svg><div class="legend"><span><i style="background:var(--sev1)"></i>≥18</span><span><i style="background:#5aa02c"></i>15–17.9</span><span><i style="background:var(--sev3)"></i>10–14.9</span><span><i style="background:var(--sev4)"></i>&lt;10</span><span><i style="background:var(--na-soft)"></i>not audited</span></div></figure>`}
 function turbine(sc,a){
   const c=z=>pctColor(zoneScore(sc,z)),tr=(a&&a.trafo)||'nacelle',P='#720062';
   const blade=g=>`<path d="M52 82 L48 20 Q52 6 56 20 Z" transform="rotate(${g} 52 82)" fill="${c('blades')}" stroke="var(--surface)" stroke-width="1"/>`;
@@ -1340,7 +1664,7 @@ function sheetMakeAction(aid,code){
   openSheet(`<h2>Raise action</h2><p class="muted" style="margin-top:-6px"><span class="code">${code}</span> ${esc(it.text)}</p>
    <form id="fact"><label class="field"><span>Action</span><input id="x-title" required value="${esc(r.prop?r.prop.slice(0,140):(r.s==='meas'?'Measure: ':'Correct: ')+it.text.split('.')[0].replace(/\?$/,''))}"></label>
     <label class="field"><span>Details</span><textarea id="x-desc" rows="3">${esc([r.obs&&'Observation: '+r.obs,r.imp&&'Potential impact: '+r.imp,r.note].filter(Boolean).join('\n'))}</textarea></label>
-    <div class="fgrid"><label class="field"><span>Priority</span><select id="x-prio">${PRIOS.map(p=>`<option ${p===(it.w===3?'High':it.w===2?'Medium':'Low')?'selected':''}>${p}</option>`).join('')}</select></label>
+    <div class="fgrid"><label class="field"><span>Priority</span><select id="x-prio">${PRIOS.map(p=>`<option ${p===(it.o.sc==='audit'?({imm:'Critical',high:'High',med:'Medium'}[r.o]||'Low'):it.w===3?'High':it.w===2?'Medium':'Low')?'selected':''}>${p}</option>`).join('')}</select></label>
      <label class="field"><span>Due date</span><input id="x-due" type="date"></label></div>
     <div class="field"><span>Responsible</span>${peoplePicker('x-own',S.meId?[S.meId]:[])}</div>
     <p class="muted" style="font-size:13px">${(r.photos||[]).length} finding photo(s) will be attached.</p>
@@ -1580,16 +1904,70 @@ function vSettings(){want(S.admins);
     :`<div class="people">${S.admins.map(i=>`<span class="person">${av(i)}${esc(nm(i))}</span>`).join('')||'<span class="muted">Not assigned yet. The owner of this page chooses them.</span>'}</div>`}</div>
    <div class="card pad"><h2 style="font-size:18px">How the score works</h2><p class="muted" style="margin-top:6px">Each control point carries a weight: structural and safety points ×3, major ×2, minor ×1. The score is the weighted share of OK answers among the points answered OK or nOK; n/a and record-only points are left out.</p>
     <div class="stack" style="gap:6px;margin-top:8px">${[['A','≥ 90 and no structural nOK','Fit for extended operation'],['B','75–89 and no structural nOK','Fit – minor actions'],['C','50–74, or any structural nOK','Conditional – actions required'],['D','< 50','Not fit – critical findings']].map(([g,r,t])=>`<div class="row" style="gap:10px"><span class="grade g-${g}">${g}</span><span><b style="font-weight:500">${t}</b> <span class="muted">· ${r}</span></span></div>`).join('')}</div>
-    <p class="muted" style="font-size:13px;margin-top:12px">WTQCIA: ${TPL.WTQCIA.items.length} control points in ${TPL.WTQCIA.sections.length} sections (Q01.010 – Q15.040). LEA: ${TPL.LEA.items.length} control points in ${TPL.LEA.sections.length} sections (I01.010 – I16.030). SVSC: ${TPL.SVSC.items.length} control points in ${TPL.SVSC.sections.length} sections (V01.010 – V08.020). WOQCIA: ${TPL.WOQCIA.items.length} control points, section weights ${Object.values(WH_W).join('/')}%. SWQCIA: ${TPL.SWQCIA.items.length} control points, section weights ${Object.values(SS_W).join('/')}%.</p></div></div>`;
+    <p class="muted" style="font-size:13px;margin-top:12px">General audit: ${TPL.GEN.items.length} control points in 4 sheets, scored /20. Turbine quality: ${TPL.WTQCIA.items.length} control points in ${TPL.WTQCIA.sections.length} sections (Q01.010 – Q15.040). Lifetime extension: ${TPL.LEA.items.length} control points in ${TPL.LEA.sections.length} sections (I01.010 – I16.030). Vehicle check: ${TPL.SVSC.items.length} control points in ${TPL.SVSC.sections.length} sections (V01.010 – V08.020). Warehouse: ${TPL.WOQCIA.items.length} control points, section weights ${Object.values(WH_W).join('/')}%. Substation: ${TPL.SWQCIA.items.length} control points, section weights ${Object.values(SS_W).join('/')}%.</p></div></div>`;
 }
+
+/* ---------- PDF (report in any state, or blank form) ---------- */
+const LIBS={h2c:['html2canvas.min.js','https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js'],pdf:['jspdf.umd.min.js','https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js']};
+const libP={};
+const loadLib=k=>libP[k]||(libP[k]=new Promise((res,rej)=>{const s=document.createElement('script');s.src=FIELD?LIBS[k][0]:LIBS[k][1];s.onload=res;s.onerror=()=>{delete libP[k];s.remove();rej(new Error('lib'))};document.head.appendChild(s)}));
+const fileBase=a=>{const T=tplOf(a);const d=(a.date||today()).replace(/-/g,'');const c=v=>String(v||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().replace(/[^\w-]+/g,'_').replace(/^_+|_+$/g,'');return `${c(a.wf)}_${c(a.wtg)}_${d}`+(T.gen?'':'_'+T.tag)};
+async function htmlToPdf(article,title,filename){
+  const busy=document.createElement('div');busy.className='pdfbusy';busy.innerHTML='<div><div class="spin"></div><b>Creating PDF…</b><span class="muted">This can take a few seconds with many photos.</span></div>';document.body.appendChild(busy);
+  const wrap=document.createElement('div');wrap.className='pdfwrap';wrap.appendChild(article);document.body.appendChild(wrap);
+  try{
+    await Promise.all([loadLib('h2c'),loadLib('pdf')]);
+    await Promise.all([...wrap.querySelectorAll('img')].map(im=>im.complete?0:new Promise(r=>{im.onload=im.onerror=r;setTimeout(r,8000)})));
+    const PW=210,PH=297,M=10,CW=PW-2*M,K=CW/wrap.offsetWidth,PAGE=(PH-2*M-4)/K;
+    const flat=el=>el.offsetHeight>PAGE*.8&&el.children.length>1?[...el.children].flatMap(flat):[el];
+    const top0=article.getBoundingClientRect().top+window.scrollY,total=article.offsetHeight;
+    const bl=[...article.children].flatMap(flat).filter(el=>el.offsetHeight>0).map(el=>{const r=el.getBoundingClientRect();return [r.top+window.scrollY-top0,r.bottom+window.scrollY-top0,el.matches('h2,.bf-part,.barpart')]});
+    const pages=[];let st=0;
+    let kt=null;for(const [t,b,kw] of bl){while(b-st>PAGE){let cut=t>st+40?t:st+PAGE;if(kt!=null&&kt>st+40&&cut===t)cut=kt;pages.push([st,cut]);st=cut}kt=kw?(kt??t):null}
+    if(total-st>2)pages.push([st,total]);
+    const {jsPDF}=window.jspdf;const doc=new jsPDF({unit:'mm',format:'a4',compress:true});
+    const light=d=>{d.documentElement.setAttribute('data-theme','light')};
+    const sc2=Math.min(2,Math.sqrt(9e6/(wrap.offsetWidth*PAGE)));
+    for(let i=0;i<pages.length;i++){const [a0,a1]=pages[i];
+      const cv=await html2canvas(article,{scale:sc2,backgroundColor:'#ffffff',useCORS:true,logging:false,windowWidth:1100,onclone:light,x:article.getBoundingClientRect().left+window.scrollX,y:top0+a0,width:wrap.offsetWidth,height:Math.ceil(a1-a0),scrollX:0,scrollY:0});
+      if(i)doc.addPage();doc.addImage(cv.toDataURL('image/jpeg',.9),'JPEG',M,M,CW,(a1-a0)*K)}
+    const n=doc.getNumberOfPages();for(let i=1;i<=n;i++){doc.setPage(i);doc.setFontSize(7.5);doc.setTextColor(130);doc.text(title,M,PH-5);doc.text(`${i} / ${n}`,PW-M,PH-5,{align:'right'})}
+    const blob=doc.output('blob');
+    await S.dl.save({filename,data:blob});
+  }catch(e){if(!(e&&e.code==='cancelled'))toast(e&&e.message==='lib'?'The PDF tool could not be loaded. Check the network and try again.':'The PDF could not be created.');console.error(e)}
+  finally{wrap.remove();busy.remove()}
+}
+async function exportPdf(aid){const a=S.assess.find(x=>x.id===aid),el=document.querySelector('.report');if(!a||!el||!S.dl)return;
+  const art=el.cloneNode(true);art.classList.add('pdfdoc');art.querySelectorAll('button.thumb').forEach(b=>{b.removeAttribute('data-zoom')});
+  const T=tplOf(a);await htmlToPdf(art,`nadara · ${T.name} · ${a.wtg} · ${a.wf} · ${a.status==='completed'?'completed '+fmtD(a.completedAt):'draft '+fmtD(new Date())}`,fileBase(a)+(a.status==='completed'?'':'_draft')+'.pdf')}
+function blankArticle(tk,a){const T=TPL[tk],sec=a?secsOf(a):T.sections;const parts=T.gen?(a&&a.parts||GEN_PARTS.map(x=>x[0])):null;
+  const opts=T.gen?['1','2','3','4','5','N/A']:null;
+  const box=l=>`<span class="bf-box"><i></i>${esc(l)}</span>`;
+  const answers=it=>it.o.sc&&!T.gen?SCALES[it.o.sc].map(o=>box(o[1])).join(''):opts?opts.map(box).join(''):['OK','nOK','n/a'].map(box).join('');
+  const line=(l,v)=>`<div class="bf-field"><span>${esc(l)}</span><b>${v?esc(v):''}</b></div>`;
+  const hdr=T.gen?[['Wind farm / site',a&&a.wf],['Audit reference (WTG ID)',a&&a.wtg],['Audit date',a&&fmtD(a.date)],['Auditor(s)',a&&(a.inspectors||[]).map(nm).join(', ')],['OEM / model',a&&a.type],['Country',a&&a.country],...parts.flatMap(p=>GEN_FIELDS[p]).map(([k,l])=>[l,a&&a.hdr&&a.hdr[k]])]
+    :T.vehicle?[['Licence plate',a&&a.wtg],['Odometer (km)',a&&a.hours],['Make / model',a&&a.type],['Wind farm / base',a&&a.wf],['Date',a&&fmtD(a.date)],['Inspected by',a&&(a.inspectors||[]).map(nm).join(', ')],['Country',a&&a.country]]
+    :T.site?[[T.site==='warehouse'?'Warehouse':'Substation',a&&a.wtg],[T.site==='warehouse'?'Location':'Wind farm',a&&a.wf],['Date',a&&fmtD(a.date)],['Floor area (m²)',a&&a.area],['Inspected by',a&&(a.inspectors||[]).map(nm).join(', ')],['Country',a&&a.country]]
+    :[['Wind farm',a&&a.wf],['Turbine (WTG)',a&&a.wtg],['Turbine type',a&&(a.type+' '+(a.mk||''))],['Date',a&&fmtD(a.date)],['Operating hours',a&&a.hours],['Inspectors',a&&(a.inspectors||[]).map(nm).join(', ')],['Country',a&&a.country]];
+  const art=document.createElement('article');art.className='report pdfdoc blankform';
+  art.innerHTML=`<div class="rband"><div><div class="eyebrow">nadara · ${esc(T.name)}</div><h1>Inspection form${a?' · '+esc(a.wtg):''}</h1></div><div class="pill" style="background:rgba(255,255,255,.18);color:#fff">Blank form · fill in by hand</div></div>
+   <div class="rsec"><div class="bf-grid">${hdr.map(([l,v])=>line(l,v)).join('')}</div>
+    <div class="bf-legend">${T.gen?'Rating: <b>1</b> Conforming (20) · <b>2</b> Acceptable (15) · <b>3</b> Medium priority (10) · <b>4</b> High priority (5) · <b>5</b> Immediate action (0) · <b>N/A</b> not applicable. <span class="sbadge">S</span> safety-critical: a 5 on any S point makes the audit Critical. Points rated 3–5 need a corrective action, owner and due date.':'Tick one box per control point. Describe every nOK / improvement with its exact location and take a photo.'}</div></div>
+   ${sec.map((s,si)=>`<div class="rsec bf-sec">${T.gen&&(si===0||sec[si-1].part!==s.part)?`<div class="bf-part">${partIcon(s.part,28)}<b>${esc(GEN_PART_SHORT[s.part])}</b><span class="muted">${fmtMin(partMins(s.part))}</span></div>`:''}<h2><span class="mono">${s.id}</span> ${esc(s.t)}${s.min?` <span class="mins">${s.min} min</span>`:''}</h2>
+     ${s.items.map(x=>{const it=ITEM[x[0]];return `<div class="bf-row"><span class="code">${esc(it.o.ref||it.code)}${it.o.s?' <span class="sbadge">S</span>':''}</span><div><div>${esc(it.text)}</div>${it.o.h?`<div class="bf-hint">${esc(it.o.h)}</div>`:''}<div class="bf-note">Comment / photo no.:</div></div><div class="bf-ans">${answers(it)}</div></div>`}).join('')}</div>`).join('')}
+   <div class="rsec"><h2>Corrective actions</h2><div class="bf-act"><span>Ref.</span><span>Action</span><span>Responsible</span><span>Due date</span>${'<i></i><i></i><i></i><i></i>'.repeat(6)}</div></div>
+   <div class="rsec"><div class="bf-grid">${line('Auditor signature')}${line('Validated by / signature')}${line('Date')}</div></div>`;
+  return art}
+async function exportBlank(tk,aid){if(!S.dl)return;const a=aid?S.assess.find(x=>x.id===aid):null;const T=TPL[tk];
+  await htmlToPdf(blankArticle(tk,a),`nadara · ${T.name} · blank inspection form`,a?fileBase(a)+'_form.pdf':`${T.tag}_blank_form.pdf`)}
 
 /* ---------- export ---------- */
 async function exportCsv(aid){
   const a=S.assess.find(x=>x.id===aid);if(!a||!S.dl)return;const sc=scoreOf(a),ans=answersOf(a);
   const q=v=>'"'+String(v??'').replace(/"/g,'""')+'"';
-  const rows=[['Assessment',sc.T.name+' ('+sc.T.tag+')'],['Country',(a.country||'')+(a.countryOk?'':' (not confirmed)')],['Wind farm',a.wf],['Turbine',a.wtg],['Type',a.type+' '+a.mk],['Date',a.date],['Score',sc.pct==null?'':Math.round(sc.pct)],['Grade',sc.grade.g+' '+sc.grade.t],[],
+  const rows=[['Assessment',sc.T.name],['Country',(a.country||'')+(a.countryOk?'':' (not confirmed)')],['Wind farm',a.wf],['Turbine',a.wtg],['Type',a.type+' '+a.mk],['Date',a.date],['Score',sc.pct==null?'':Math.round(sc.pct)],['Grade',sc.grade.g+' '+sc.grade.t],...(sc.T.gen?[['Score /20',sc.pct==null?'':(sc.pct/5).toFixed(1)],['Sheets',(a.parts||[]).join(', ')],...Object.entries(a.hdr||{}).filter(x=>x[1]).map(([k,v])=>[genFieldLabel(k),v])]:[]),[],
     ['Code','Section','Control point','Result','Value','Unit','Note','Photos','Recorded by','Recorded at']];
-  for(const i of sc.T.items){const r=ans[i.code]||{};rows.push([i.code,i.sec.t,i.text,(r.s||'').toUpperCase().replace('NOK','nOK').replace('NA','n/a'),(r.v||[]).filter(v=>v!=='').join(' / '),i.o.m?i.o.m.u:'',r.note||'',(r.photos||[]).length,r.by?nm(r.by):'',r.at||''])}
+  for(const i of itemsOf(a)){const r=ans[i.code]||{};const o=optOf(i,r);rows.push([i.o.ref||i.code,i.sec.t,i.text,o?o[1]:(r.s||'').toUpperCase().replace('NOK','nOK').replace('NA','n/a'),(r.v||[]).filter(v=>v!=='').join(' / '),i.o.m?i.o.m.u:'',r.note||'',(r.photos||[]).length,r.by?nm(r.by):'',r.at||''])}
   rows.push([],['Action','Code','Priority','Responsible','Due','Status']);
   S.actions.filter(x=>x.aid===aid).forEach(x=>rows.push([x.title,x.code,x.prio,nm(x.assignee),x.due,actState(x).t]));
   try{await S.dl.save({filename:`${sc.T.tag}_${(a.wf+'_'+a.wtg).replace(/[^\w-]+/g,'_')}_${a.date}.csv`,data:'﻿'+rows.map(r=>r.map(q).join(';')).join('\r\n')})}catch(e){if(e&&e.code!=='cancelled')toast('The file could not be saved.')}
@@ -1645,6 +2023,8 @@ document.addEventListener('click',async e=>{
   if('libexport' in ds)return exportLibrary(t);
   if(t.id==='editname')return sheetName();
   if(ds.html)return exportHtml(ds.html,t);
+  if(ds.rpdf)return exportPdf(ds.rpdf);
+  if(ds.blank){closeSheet();return exportBlank(ds.blank,ds.aid||'')}
   if(ds.copylink){const u=APP_URL+'#r-'+ds.copylink;try{await navigator.clipboard.writeText(u);toast('Link copied. Only people with access to the app can open it.')}catch(e){openSheet(`<h2>Report link</h2><p class="muted">Copy this link. Only people with access to the app can open it.</p><input class="search" style="width:100%;border-radius:8px" readonly value="${esc(u)}" onfocus="this.select()"><div class="row" style="justify-content:flex-end;margin-top:12px"><button class="btn" data-close>Close</button></div>`)}return}
   if(t.id==='saveadm'){const ids=[...new Set(pickers['adm'])];if(ids.length<1||ids.length>3){toast('Choose 1 to 3 validators');return}
     try{await S.db.doc('config/admins').set({ids,updatedAt:new Date().toISOString()});S.admDirty=false;toast('Validators saved')}catch(err){toast(dbMsg(err))}return}
@@ -1671,6 +2051,7 @@ document.addEventListener('change',async e=>{
   if(el.dataset.ref!=null){const code=el.dataset.ref,fs=[...el.files];el.value='';if(!fs.length)return;const k='ref|'+code;S.uploads[k]=(S.uploads[k]||0)+fs.length;render();
     const ids=await uploadPhotos(fs);S.uploads[k]-=fs.length;if(ids.length)await saveRefs(code,[...(S.refs[code]||[]),...ids]);else render();return}
   const aid=route().startsWith('a-')?route().slice(2):null;if(!aid)return;
+  if(el.dataset.hdr!=null){const a=S.assess.find(x=>x.id===aid);if(!a)return;try{await S.db.doc('assessments/'+aid).update({hdr:{...(a.hdr||{}),[el.dataset.hdr]:el.value.trim()},updatedAt:new Date().toISOString()})}catch(err){toast(dbMsg(err))}return}
   if(el.dataset.note!=null){return saveAns(aid,el.dataset.note,{note:el.value.trim()})}
   if(el.dataset.fld!=null){return saveAns(aid,el.dataset.code,{[el.dataset.fld]:el.value.trim()})}
   if(el.dataset.date!=null){const p={d:el.value};if(el.value&&el.value<today()){p.s='nok';toast('Inspection date expired: marked nOK')}return saveAns(aid,el.dataset.date,p)}
