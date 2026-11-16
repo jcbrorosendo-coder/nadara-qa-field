@@ -1,0 +1,15 @@
+/* Nadara QA Field — offline cache. Bump VERSION when publishing a new build. */
+const VERSION='nqa-field-v9';
+const CORE=['./','./index.html','./manifest.webmanifest','./icon-192.png','./icon-512.png','./apple-touch-icon.png','./html2canvas.min.js','./jspdf.umd.min.js','./swi-fig01.jpg','./swi-fig02.jpg','./swi-fig03.jpg','./swi-fig04.jpg','./swi-fig05.jpg','./swi-fig06.jpg','./swi-fig07.jpg','./swi-fig08.jpg','./swi-fig09.jpg','./swi-fig10.jpg','./swi-fig11.jpg','./swi-fig12.jpg','./swi-fig13.jpg','./swi-fig14.jpg','./swi-fig15.jpg','./swi-fig16.jpg','./swi-fig17.jpg','./swi-fig18.jpg','./swi-fig19.jpg','./swi-fig20.jpg','./swi-fig21.jpg','./swi-fig22.jpg','./swi-fig23.jpg','./swi-fig24.jpg','./swi-fig25.jpg','./swi-fig26.jpg','./swi-fig27.jpg','./swi-fig28.jpg','./swi-fig29.jpg','./swi-fig30.jpg','./swi-fig31.jpg','./swi-fig32.jpg','./swi-fig33.jpg','./swi-fig34.jpg','./swi-fig35.jpg','./swi-fig36.jpg','./swi-p01.jpg','./swi-p02.jpg','./swi-p03.jpg','./swi-p04.jpg','./swi-p05.jpg','./swi-p06.jpg','./swi-p07.jpg','./swi-p08.jpg','./swi-p09.jpg','./swi-p10.jpg','./swi-p11.jpg','./swi-p12.jpg','./swi-p13.jpg','./swi-p14.jpg','./swi-p15.jpg','./swi-p16.jpg','./swi-p17.jpg','./swi-p18.jpg','./swi-p19.jpg','./swi-p20.jpg','./swi-p21.jpg','./swi-p22.jpg','./swi-p23.jpg','./swi-p24.jpg','./swi-p25.jpg','./swi-p26.jpg','./swi-p27.jpg','./swi-p28.jpg','./swi-p29.jpg','./swi-p30.jpg','./swi-p31.jpg','./swi-p32.jpg','./swi-p33.jpg','./swi-p34.jpg','./swi-p35.jpg','./swi-p36.jpg','./swi-p37.jpg','./swi-p38.jpg','./swi-p39.jpg','./swi-p40.jpg','./swi-swi_lte.pdf'];
+self.addEventListener('install',e=>{e.waitUntil(caches.open(VERSION).then(c=>c.addAll(CORE)).then(()=>self.skipWaiting()))});
+self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==VERSION).map(k=>caches.delete(k)))).then(()=>self.clients.claim()))});
+self.addEventListener('fetch',e=>{
+  const req=e.request;if(req.method!=='GET')return;
+  const url=new URL(req.url);
+  // app shell: cache first, refresh in background
+  // page itself: network first (so updates show at once when online), cache when offline
+  if(url.origin===location.origin&&(req.mode==='navigate'||/\/(index\.html)?$/.test(url.pathname))){e.respondWith(fetch(req,{cache:'no-store'}).then(r=>{if(r.ok){const cp=r.clone();caches.open(VERSION).then(c=>c.put('./index.html',cp))}return r}).catch(()=>caches.match('./index.html',{ignoreSearch:true}).then(h=>h||caches.match(req,{ignoreSearch:true}))));return}
+  if(url.origin===location.origin){e.respondWith(caches.match(req,{ignoreSearch:true}).then(hit=>{const net=fetch(req).then(r=>{if(r.ok){const cp=r.clone();caches.open(VERSION).then(c=>c.put(req,cp))}return r}).catch(()=>hit||caches.match('./index.html'));return hit||net}));return}
+  // fonts: cache what was fetched once
+  if(/fonts\.(googleapis|gstatic)\.com$/.test(url.hostname)){e.respondWith(caches.match(req).then(hit=>hit||fetch(req).then(r=>{const cp=r.clone();caches.open(VERSION).then(c=>c.put(req,cp));return r}).catch(()=>hit)))}
+});
